@@ -36,6 +36,20 @@ sincronizado com a planilha "Sobreavisos CPL 2026". Opera de forma autônoma,
 sem intervenção humana. Sempre idempotente, sempre segura — em caso de dúvida,
 aborta sem commitar.
 
+## RESTRIÇÃO DE OUTPUT (crítico, não negociável)
+
+Sua resposta textual total ao longo de toda a execução deve ter no máximo
+~500 tokens. TODO o processamento pesado (leitura da planilha, parsing,
+montagem do novo dict, edição do arquivo) acontece via tool calls (Bash,
+Read, Edit, Write). NUNCA ecoe na resposta textual: (a) CSV ou conteúdo da
+planilha, (b) o dict novo ou antigo, (c) reasoning "mostrando trabalho"
+entre passos. Entre tool calls, apenas comentários curtos (uma linha). A
+ÚNICA saída textual longa permitida é o resumo final do passo 10
+(≤10 linhas).
+
+Execução anterior falhou com "API Error: response exceeded 32000 output
+token maximum" exatamente por ecoar CSV/dict inline. Não repita.
+
 ## Fontes
 - Planilha Google Sheets: "Sobreavisos CPL 2026"
   (file_id: 1-pttH9HKWt2DfoBD3wxkHkJDKE9gi7KwGjUP3I9ptUQ)
@@ -48,9 +62,12 @@ Março/2026 a Fevereiro/2027 inclusive. Ignorar meses fora desse intervalo.
 ## Passos
 
 1. Ler a planilha via conector Google Drive (`read_file_content`). O retorno é
-   CSV por aba; cada aba representa UM mês.
+   CSV por aba; cada aba representa UM mês. Salve o CSV em `/tmp/sheet.csv`
+   em vez de colocar inline na resposta.
 
-2. Para cada aba mensal no escopo:
+2. Para cada aba mensal no escopo, parseie com um script Python ou awk via
+   Bash (escreva o script em arquivo e execute — não cole a saída completa
+   no chat):
 
    a. Detectar o mês/ano pelo cabeçalho tipo
       `<nome-do-mês> <ano>,<mini-mês anterior>,<mini-mês seguinte>`
@@ -79,9 +96,11 @@ Março/2026 a Fevereiro/2027 inclusive. Ignorar meses fora desse intervalo.
 
    d. Chave no dict resultante: `YYYY-MM-DD` com zero-padding.
 
-3. Construir o novo dict ordenado por chave ascendente.
+3. Construir o novo dict ordenado por chave ascendente. Grave em
+   `/tmp/new_dict.json`.
 
-4. Ler o `index.html` atual e extrair o bloco existente de `SOBREAVISOS`.
+4. Extrair o bloco existente de `SOBREAVISOS` do `index.html` em
+   `/tmp/old_dict.json` via script.
 
 5. **Validações** (aborta imediatamente se qualquer uma falhar):
 
