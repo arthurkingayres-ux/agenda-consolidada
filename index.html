@@ -220,6 +220,29 @@ var activeFilter = 'all';
 var CONFLICTS = [];
 var tKey = todayK();
 var accessToken = null;
+var AUTH_KEY = 'agenda_auth_v1';
+var tokenClient = null;
+
+function saveAuth(tok, expiresIn) {
+  var expiresAt = Date.now() + (expiresIn || 3600) * 1000 - 60000; // minus 60s buffer
+  try { localStorage.setItem(AUTH_KEY, JSON.stringify({ access_token: tok, expires_at: expiresAt })); } catch(e) {}
+}
+function loadAuth() {
+  try {
+    var raw = localStorage.getItem(AUTH_KEY);
+    if (!raw) return null;
+    var data = JSON.parse(raw);
+    if (data.access_token && data.expires_at > Date.now()) return data.access_token;
+  } catch(e) {}
+  return null;
+}
+function clearAuth() { try { localStorage.removeItem(AUTH_KEY); } catch(e) {} }
+
+function showDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  loadData();
+}
 
 // ============ GOOGLE AUTH ============
 function loadGsi() {
@@ -230,21 +253,31 @@ function loadGsi() {
 }
 
 function initGsi() {
-  document.getElementById('login-btn').addEventListener('click', function() {
-    var client = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      callback: function(resp) {
-        if (resp.access_token) {
-          accessToken = resp.access_token;
-          document.getElementById('login-screen').style.display = 'none';
-          document.getElementById('dashboard').style.display = 'block';
-          loadData();
-        }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: function(resp) {
+      if (resp.access_token) {
+        accessToken = resp.access_token;
+        saveAuth(resp.access_token, resp.expires_in);
+        showDashboard();
       }
-    });
-    client.requestAccessToken();
+    },
+    error_callback: function() { /* silent failures stay on login screen */ }
   });
+
+  document.getElementById('login-btn').addEventListener('click', function() {
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  });
+
+  // Try silent auth: cached token → silent refresh → show login button
+  var cached = loadAuth();
+  if (cached) {
+    accessToken = cached;
+    showDashboard();
+  } else {
+    tokenClient.requestAccessToken({ prompt: '' });
+  }
 }
 
 // ============ FETCH CALENDAR ============
@@ -254,6 +287,12 @@ async function fetchEvents() {
     '/events?timeMin=2026-03-01T00:00:00-03:00&timeMax=2027-03-01T00:00:00-03:00' +
     '&singleEvents=true&orderBy=startTime&maxResults=250&timeZone=America/Sao_Paulo';
   var resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + accessToken } });
+  if (resp.status === 401) {
+    clearAuth();
+    accessToken = null;
+    if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+    throw new Error('Token expired');
+  }
   if (!resp.ok) throw new Error('Calendar API error');
   return (await resp.json()).items || [];
 }
