@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Agenda Arthur">
+<meta name="theme-color" content="#1E3A5F">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Agenda Consolidada â Arthur</title>
+<style>
+:root { color-scheme: light; --bg: #F9FAFB; --text: #1F2937; --muted: #6B7280; --border: #E5E7EB; --card: white; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 0; padding-bottom: env(safe-area-inset-bottom, 20px); -webkit-user-select: none; user-select: none; }
+.container { max-width: 500px; margin: 0 auto; padding: 12px; }
+
+/* Login */
+.login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; text-align: center; padding: 24px; }
+.login-screen h1 { font-size: 24px; color: #1E3A5F; margin-bottom: 8px; }
+.login-screen p { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+.login-btn { background: #1E3A5F; color: white; border: none; padding: 14px 28px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: transform 0.1s; }
+.login-btn:active { transform: scale(0.97); }
+.login-btn svg { width: 20px; height: 20px; }
+
+/* Loading */
+.loading { text-align: center; padding: 60px 24px; color: var(--muted); }
+.spinner { display: inline-block; width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: #0891B2; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Banner */
+.banner { background: linear-gradient(135deg, #1E3A5F 0%, #0F766E 100%); color: white; border-radius: 16px; padding: 18px 20px; margin-bottom: 14px; }
+.banner h2 { font-size: 13px; opacity: 0.7; font-weight: 400; margin-bottom: 2px; letter-spacing: 0.5px; text-transform: uppercase; }
+.banner .date-big { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+.banner .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge { font-size: 11px; padding: 4px 10px; border-radius: 99px; font-weight: 600; }
+.badge-sob { background: #D97706; color: white; }
+.badge-hvc { background: #0891B2; color: white; }
+.badge-hvc-proj { background: #155E75; color: white; border: 1px dashed rgba(255,255,255,0.4); }
+.badge-conflito { background: #DC2626; color: white; }
+.badge-feriado { background: #10B981; color: white; }
+.badge-livre { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.9); }
+
+/* Legend */
+.legend { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; font-size: 10px; color: var(--muted); padding: 0 2px; }
+.legend-item { display: flex; align-items: center; gap: 3px; }
+.legend-sw { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+/* Filters */
+.filters { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 2px; }
+.filters::-webkit-scrollbar { display: none; }
+.fbtn { border: 1px solid #D1D5DB; background: var(--card); padding: 7px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; font-weight: 500; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
+.fbtn:active { transform: scale(0.95); }
+.fbtn.active { background: #1E3A5F; color: white; border-color: #1E3A5F; }
+
+/* Calendar */
+.month-section { margin-bottom: 18px; }
+.month-hdr { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: #1E3A5F; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mtag { font-size: 10px; background: var(--border); padding: 2px 6px; border-radius: 4px; font-weight: 500; color: var(--muted); }
+.mtag.real { background: #CFFAFE; color: #0891B2; }
+.cgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.chead { text-align: center; font-size: 10px; font-weight: 600; color: #9CA3AF; padding: 3px 0; }
+.cday { min-height: 40px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 13px; position: relative; background: var(--card); border: 1px solid #F3F4F6; cursor: pointer; transition: transform 0.1s; -webkit-tap-highlight-color: transparent; }
+.cday:active { transform: scale(0.92); }
+.cday.empty { background: transparent; border-color: transparent; }
+.cday.empty:active { transform: none; }
+.cday .dn { font-weight: 600; line-height: 1; }
+.cday .di { font-size: 8px; margin-top: 2px; line-height: 1; }
+
+.cday.sob { background: #FEF3C7; border-color: #D97706; }
+.cday.hvc { background: #CFFAFE; border-color: #0891B2; }
+.cday.hvc-proj { background: #E0F2FE; border-color: #155E75; border-style: dashed; }
+.cday.both { background: #EDE9FE; border-color: #7C3AED; }
+.cday.both-proj { background: #EDE9FE; border-color: #7C3AED; border-style: dashed; }
+.cday.conflict { background: #FEE2E2; border-color: #DC2626; border-width: 2px; }
+.cday.hol-border { box-shadow: inset 0 0 0 2px #10B981; }
+.cday.today { box-shadow: 0 0 0 2.5px #38BDF8, 0 0 10px rgba(56,189,248,0.35); z-index: 2; }
+.cday.past { opacity: 0.45; }
+
+/* Detail modal (bottom sheet) */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 100; display: none; opacity: 0; transition: opacity 0.2s; }
+.overlay.visible { display: block; opacity: 1; }
+.sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-radius: 16px 16px 0 0; padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 101; transform: translateY(100%); transition: transform 0.3s ease; max-height: 60vh; overflow-y: auto; }
+.sheet.visible { transform: translateY(0); }
+.sheet-handle { width: 36px; height: 4px; background: #D1D5DB; border-radius: 2px; margin: 0 auto 14px; }
+.sheet h3 { font-size: 16px; margin-bottom: 10px; }
+.ditem { font-size: 13px; padding: 8px 0; border-bottom: 1px solid #F3F4F6; display: flex; align-items: flex-start; gap: 8px; }
+.ditem:last-child { border-bottom: none; }
+.dicon { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+
+/* Accordion */
+.acc-toggle { background: #F3F4F6; border: none; width: 100%; text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 600; border-radius: 10px; cursor: pointer; margin-bottom: 8px; color: #4B5563; }
+.acc-content { display: none; }
+.acc-content.open { display: block; }
+
+/* Conflicts */
+.cflict-list { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+.cflict-list h3 { font-size: 14px; color: #DC2626; margin-bottom: 8px; }
+.centry { font-size: 12px; padding: 6px 0; border-bottom: 1px solid #FECACA; line-height: 1.4; }
+.centry:last-child { border-bottom: none; }
+
+/* Income */
+.income { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.income h3 { font-size: 15px; margin-bottom: 10px; color: #1E3A5F; }
+.igrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.icard { background: var(--bg); border-radius: 8px; padding: 8px; text-align: center; }
+.icard .mn { font-size: 11px; color: var(--muted); font-weight: 500; }
+.icard .amt { font-size: 15px; font-weight: 700; color: #059669; margin-top: 1px; }
+.icard .sc { font-size: 10px; color: #9CA3AF; }
+.itotal { margin-top: 10px; text-align: right; font-size: 17px; font-weight: 700; color: #059669; }
+
+.note { font-size: 10px; color: #9CA3AF; text-align: center; margin-top: 6px; font-style: italic; }
+
+/* Pull to refresh hint */
+.refresh-hint { text-align: center; font-size: 11px; color: var(--muted); padding: 8px; cursor: pointer; }
+.refresh-hint:active { color: #0891B2; }
+</style>
+</head>
+<body>
+<div class="container" id="app">
+  <div class="login-screen" id="login-screen">
+    <h1>Agenda Consolidada</h1>
+    <p>Sobreavisos UNICAMP + Plant&otilde;es HVC<br>Toque para conectar seu Google Calendar</p>
+    <button class="login-btn" id="login-btn">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 001 12c0 1.77.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      Entrar com Google
+    </button>
+  </div>
+  <div id="dashboard" style="display:none"></div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="sheet" id="sheet"><div class="sheet-handle"></div><div id="sheet-content"></div></div>
+
+<script>
+// =============================================
+// CONFIG â Substitua pelo seu Client ID
+// =============================================
+var CLIENT_ID = '175749909419-gabqg1h5i6qvjj7su2g8b1sr368r90h4.apps.googleusercontent.com';
+var SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
+var PEGA_CAL_ID = '046759683cb23c692aed5144d5561c4938f6eeab778e6340fed910350facd627@group.calendar.google.com';
+// =============================================
+
+var MONTHS_PT = ['','Janeiro','Fevereiro','MarÃ§o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+var WD_SHORT = ['S','T','Q','Q','S','S','D'];
+var WD_NAMES = ['Domingo','Segunda','TerÃ§a','Quarta','Quinta','Sexta','SÃ¡bado'];
+
+var SOBREAVISOS = {
+  "2026-03-05":{"t":"full"},"2026-03-06":{"t":"full"},"2026-03-07":{"t":"full"},
+  "2026-03-08":{"t":"full"},"2026-03-12":{"t":"full"},"2026-03-18":{"t":"full"},
+  "2026-03-21":{"t":"full"},"2026-03-22":{"t":"full"},"2026-03-25":{"t":"full"},
+  "2026-04-05":{"t":"partial","h":"19h-7h"},
+  "2026-04-08":{"t":"full"},"2026-04-16":{"t":"full"},"2026-04-20":{"t":"full"},
+  "2026-04-21":{"t":"full"},"2026-04-22":{"t":"full"},"2026-04-29":{"t":"full"},
+  "2026-04-30":{"t":"full"},
+  "2026-05-01":{"t":"full"},"2026-05-02":{"t":"full"},"2026-05-03":{"t":"full"},
+  "2026-05-08":{"t":"full"},"2026-05-09":{"t":"partial","h":"19h-7h"},
+  "2026-05-10":{"t":"partial","h":"7h-13h"},"2026-05-13":{"t":"full"},
+  "2026-05-14":{"t":"full"},"2026-05-20":{"t":"full"},"2026-05-27":{"t":"full"},
+  "2026-05-29":{"t":"full"},
+  "2026-06-03":{"t":"full"},"2026-06-04":{"t":"full"},"2026-06-06":{"t":"full"},
+  "2026-06-08":{"t":"full"},"2026-06-11":{"t":"full"},"2026-06-15":{"t":"full"},
+  "2026-06-18":{"t":"full"},"2026-06-20":{"t":"full"},"2026-06-24":{"t":"full"},
+  "2026-06-29":{"t":"full"},
+  "2026-07-02":{"t":"full"},"2026-07-04":{"t":"full"},"2026-07-07":{"t":"full"},
+  "2026-07-08":{"t":"full"},"2026-07-10":{"t":"full"},"2026-07-11":{"t":"partial","h":"19h-7h"},
+  "2026-07-16":{"t":"full"},"2026-07-22":{"t":"full"},"2026-07-29":{"t":"full"},
+  "2026-07-30":{"t":"full"},
+  "2026-08-05":{"t":"full"},"2026-08-08":{"t":"full"},"2026-08-11":{"t":"full"},
+  "2026-08-15":{"t":"full"},"2026-08-18":{"t":"full"},"2026-08-22":{"t":"full"},
+  "2026-08-27":{"t":"full"},"2026-08-29":{"t":"full"},
+  "2026-09-02":{"t":"full"},"2026-09-05":{"t":"full"},"2026-09-09":{"t":"full"},
+  "2026-09-12":{"t":"full"},"2026-09-16":{"t":"full"},"2026-09-19":{"t":"full"},
+  "2026-09-23":{"t":"full"},"2026-09-26":{"t":"full"},"2026-09-30":{"t":"full"},
+  "2026-11-04":{"t":"full"},"2026-11-07":{"t":"full"},"2026-11-11":{"t":"full"},
+  "2026-11-14":{"t":"full"},"2026-11-18":{"t":"full"},"2026-11-21":{"t":"full"},
+  "2026-11-25":{"t":"full"},"2026-11-28":{"t":"full"},
+  "2026-12-02":{"t":"full"},"2026-12-05":{"t":"full"},"2026-12-09":{"t":"full"},
+  "2026-12-12":{"t":"full"},"2026-12-16":{"t":"full"},"2026-12-19":{"t":"full"},
+  "2026-12-23":{"t":"full"},
+  "2027-01-02":{"t":"full"},"2027-01-06":{"t":"full"},"2027-01-09":{"t":"full"},
+  "2027-01-13":{"t":"full"},"2027-01-16":{"t":"full"},"2027-01-20":{"t":"full"},
+  "2027-01-23":{"t":"full"},"2027-01-27":{"t":"full"},"2027-01-30":{"t":"full"},
+  "2027-02-03":{"t":"full"},"2027-02-04":{"t":"full"},"2027-02-06":{"t":"full"},
+  "2027-02-10":{"t":"full"},"2027-02-13":{"t":"full"},"2027-02-20":{"t":"full"},
+  "2027-02-24":{"t":"full"},"2027-02-27":{"t":"full"}
+};
+
+var FERIADOS = {
+  "2026-04-02":"PaixÃ£o de Cristo","2026-04-21":"Tiradentes",
+  "2026-05-01":"Dia do Trabalho","2026-06-04":"Corpus Christi",
+  "2026-07-09":"Rev. Constitucionalista","2026-09-07":"IndependÃªncia",
+  "2026-10-12":"N.S. Aparecida","2026-11-02":"Finados",
+  "2026-11-15":"ProclamaÃ§Ã£o da RepÃºblica","2026-11-20":"ConsciÃªncia Negra",
+  "2026-12-08":"ConceiÃ§Ã£o (Campinas)","2026-12-24":"VÃ©spera de Natal",
+  "2026-12-25":"Natal","2026-12-28":"SuspensÃ£o UNICAMP",
+  "2026-12-29":"SuspensÃ£o UNICAMP","2026-12-30":"SuspensÃ£o UNICAMP",
+  "2026-12-31":"SuspensÃ£o UNICAMP","2027-01-01":"ConfraternizaÃ§Ã£o",
+  "2027-02-15":"Carnaval","2027-02-16":"Carnaval",
+  "2027-02-17":"Carnaval","2027-02-18":"Quarta de Cinzas"
+};
+
+var monthList = [];
+for (var m = 3; m <= 12; m++) monthList.push([2026, m]);
+monthList.push([2027, 1]); monthList.push([2027, 2]);
+
+function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+function dk(y,m,d) { return y + '-' + pad2(m) + '-' + pad2(d); }
+function fmtBR(k) { var p = k.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+function wdName(k) { return WD_NAMES[new Date(k + 'T12:00:00').getDay()]; }
+function todayK() { var d = new Date(); return dk(d.getFullYear(), d.getMonth()+1, d.getDate()); }
+
+var HVC = {};
+var realMonths = {};
+var totalReal = 0;
+var activeFilter = 'all';
+var CONFLICTS = [];
+var tKey = todayK();
+var accessToken = null;
+
+// ============ GOOGLE AUTH ============
+function loadGsi() {
+  var s = document.createElement('script');
+  s.src = 'https://accounts.google.com/gsi/client';
+  s.onload = function() { initGsi(); };
+  document.head.appendChild(s);
+}
+
+function initGsi() {
+  document.getElementById('login-btn').addEventListener('click', function() {
+    var client = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: function(resp) {
+        if (resp.access_token) {
+          accessToken = resp.access_token;
+          document.getElementById('login-screen').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+          loadData();
+        }
+      }
+    });
+    client.requestAccessToken();
+  });
+}
+
+// ============ FETCH CALENDAR ============
+async function fetchEvents() {
+  var url = 'https://www.googleapis.com/calendar/v3/calendars/' +
+    encodeURIComponent(PEGA_CAL_ID) +
+    '/events?timeMin=2026-03-01T00:00:00-03:00&timeMax=2027-03-01T00:00:00-03:00' +
+    '&singleEvents=true&orderBy=startTime&maxResults=250&timeZone=America/Sao_Paulo';
+  var resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + accessToken } });
+  if (!resp.ok) throw new Error('Calendar API error');
+  return (await resp.json()).items || [];
+}
+
+async function loadData() {
+  var dash = document.getElementById('dashboard');
+  dash.innerHTML = '<div class="loading"><div class="spinner"></div><br>Carregando Pega PlantÃ£o...</div>';
+
+  try {
+    var events = await fetchEvents();
+    events.forEach(function(ev) {
+      if (!ev.start || !ev.start.dateTime) return;
+      var st = new Date(ev.start.dateTime);
+      var en = new Date(ev.end.dateTime);
+      var sH = st.getHours(), eH = en.getHours();
+      var key = dk(st.getFullYear(), st.getMonth()+1, st.getDate());
+      var ymK = st.getFullYear() + '-' + pad2(st.getMonth()+1);
+      realMonths[ymK] = true;
+      totalReal++;
+      var label = 'HVC';
+      if (sH >= 19 || sH < 7) label = 'HVC Noturno';
+      else if (sH >= 7 && eH <= 13) label = 'HVC Diurno';
+      else if (sH >= 13 && eH <= 19) label = 'HVC Tarde';
+      else label = 'HVC Tarde+Noturno';
+      var hrs = pad2(sH) + 'h-' + pad2(eH) + 'h';
+      if (HVC[key]) {
+        HVC[key].label = 'HVC (mÃºltiplos)';
+        HVC[key].eventCount = (HVC[key].eventCount || 1) + 1;
+        var eS = parseInt(HVC[key].hours.split('h-')[0]);
+        HVC[key].hours = pad2(Math.min(eS, sH)) + 'h-' + pad2(eH) + 'h';
+      } else {
+        HVC[key] = { label: label, hours: hrs, source: 'real', eventCount: 1 };
+      }
+    });
+  } catch(e) { /* continue with projections */ }
+
+  // Projections
+  monthList.forEach(function(ym) {
+    var ymK = ym[0] + '-' + pad2(ym[1]);
+    if (realMonths[ymK]) return;
+    var dim = new Date(ym[0], ym[1], 0).getDate();
+    var wc = {};
+    for (var i = 1; i <= dim; i++) { var dw = new Date(ym[0], ym[1]-1, i).getDay(); if(!wc[dw]) wc[dw]=[]; wc[dw].push(i); }
+    var slots = [];
+    if (wc[5]&&wc[5][0]) slots.push({d:wc[5][0],l:'HVC Noturno',h:'19h-07h'});
+    if (wc[6]&&wc[6][1]) slots.push({d:wc[6][1],l:'HVC Diurno',h:'07h-19h'});
+    if (wc[0]&&wc[0][1]) slots.push({d:wc[0][1],l:'HVC Tarde+Noturno',h:'13h-07h'});
+    if (wc[2]&&wc[2][1]) slots.push({d:wc[2][1],l:'HVC Noturno',h:'19h-07h'});
+    if (wc[5]&&wc[5][2]) slots.push({d:wc[5][2],l:'HVC Noturno',h:'19h-07h'});
+    if (wc[2]&&wc[2][3]) slots.push({d:wc[2][3],l:'HVC Noturno',h:'19h-07h'});
+    slots.forEach(function(s) {
+      var key = dk(ym[0], ym[1], s.d);
+      HVC[key] = { label: s.l, hours: s.h, source: 'projeÃ§Ã£o', eventCount: 1 };
+    });
+  });
+
+  // Conflicts
+  CONFLICTS = [];
+  Object.keys(HVC).forEach(function(key) {
+    if (!SOBREAVISOS[key]) return;
+    var sob = SOBREAVISOS[key];
+    var dw = new Date(key + 'T12:00:00').getDay();
+    var sR = sob.t === 'partial' ? phr(sob.h) : (dw===0||dw===6 ? {s:0,e:24} : {s:19,e:31});
+    var hR = phr(HVC[key].hours);
+    if (sR.s < hR.e && hR.s < sR.e) {
+      CONFLICTS.push({ date: key, sobH: sob.h || (sR.e===24?'24h':'19h-7h'), hvcL: HVC[key].label, hvcH: HVC[key].hours, src: HVC[key].source });
+    }
+  });
+
+  render();
+}
+
+function phr(h) {
+  var c = h.replace(/h/g,'').split('-');
+  var s = parseInt(c[0]), e = parseInt(c[1]);
+  if (e <= s) e += 24;
+  return { s: s, e: e };
+}
+
+// ============ RENDER ============
+function render() {
+  var h = '';
+
+  // Banner
+  var tSob = SOBREAVISOS[tKey], tHvc = HVC[tKey], tHol = FERIADOS[tKey];
+  var tCon = CONFLICTS.find(function(c){return c.date===tKey;});
+  h += '<div class="banner"><h2>HOJE</h2>';
+  h += '<div class="date-big">' + wdName(tKey) + ', ' + fmtBR(tKey) + '</div><div class="badges">';
+  if (tCon) h += '<span class="badge badge-conflito">â  CONFLITO</span>';
+  if (tSob) h += '<span class="badge badge-sob">' + (tSob.t==='partial' ? 'Sobreaviso '+tSob.h : 'Sobreaviso') + '</span>';
+  if (tHvc) h += '<span class="badge ' + (tHvc.source==='real'?'badge-hvc':'badge-hvc-proj') + '">' + tHvc.label + ' ' + tHvc.hours + (tHvc.source==='real'?' â':' â³') + '</span>';
+  if (tHol) h += '<span class="badge badge-feriado">' + tHol + '</span>';
+  if (!tSob&&!tHvc&&!tHol) h += '<span class="badge badge-livre">Dia livre</span>';
+  h += '</div></div>';
+
+  h += '<div class="note">Pega PlantÃ£o: ' + totalReal + ' eventos reais Â· Demais meses: projeÃ§Ã£o</div>';
+
+  // Legend
+  h += '<div class="legend">';
+  h += '<div class="legend-item"><div class="legend-sw" style="background:#FEF3C7;border:1px solid #D97706"></div>Sob</div>';
+  h += '<div class="legend-item"><div class="legend-sw" style="background:#CFFAFE;border:1px solid #0891B2"></div>HVC â</div>';
+  h += '<div class="legend-item"><div class="legend-sw" style="background:#E0F2FE;border:1px dashed #155E75"></div>HVC â³</div>';
+  h += '<div class="legend-item"><div class="legend-sw" style="background:#EDE9FE;border:1px solid #7C3AED"></div>Ambos</div>';
+  h += '<div class="legend-item"><div class="legend-sw" style="background:#FEE2E2;border:2px solid #DC2626"></div>Conflito</div>';
+  h += '<div class="legend-item"><div class="legend-sw" style="background:white;box-shadow:inset 0 0 0 2px #10B981"></div>Feriado</div>';
+  h += '</div>';
+
+  // Filters
+  var fs = [{id:'all',l:'Todos'},{id:'sob',l:'Sobreaviso'},{id:'hvc',l:'HVC'},{id:'hol',l:'Feriados'},{id:'conf',l:'Conflitos ('+CONFLICTS.length+')'}];
+  h += '<div class="filters">';
+  fs.forEach(function(f) { h += '<button class="fbtn' + (activeFilter===f.id?' active':'') + '" data-f="'+f.id+'">' + f.l + '</button>'; });
+  h += '</div>';
+
+  // Months
+  var cur = [], past = [];
+  var tYM = new Date().getFullYear()*100 + new Date().getMonth()+1;
+  monthList.forEach(function(ym) { if (ym[0]*100+ym[1] < tYM) past.push(ym); else cur.push(ym); });
+
+  if (past.length) {
+    h += '<button class="acc-toggle" data-acc="p">ð Meses anteriores (' + past.length + ')</button>';
+    h += '<div class="acc-content" id="acc-p">';
+    past.forEach(function(ym) { h += renderMonth(ym[0], ym[1]); });
+    h += '</div>';
+  }
+  cur.forEach(function(ym) { h += renderMonth(ym[0], ym[1]); });
+
+  // Conflicts
+  if (CONFLICTS.length) {
+    h += '<div class="cflict-list"><h3>â  Conflitos (' + CONFLICTS.length + ')</h3>';
+    CONFLICTS.forEach(function(c) {
+      h += '<div class="centry"><strong>' + fmtBR(c.date) + '</strong> (' + wdName(c.date) + ') â Sob ' + c.sobH + ' Ã ' + c.hvcL + ' ' + c.hvcH + ' <span style="color:#9CA3AF">[' + (c.src==='real'?'â':'â³') + ']</span></div>';
+    });
+    h += '</div>';
+  }
+
+  // Income
+  h += '<div class="income"><h3>ð° ProduÃ§Ã£o HVC</h3><p style="font-size:11px;color:#9CA3AF;margin-bottom:8px">R$ 1.600/plantÃ£o</p><div class="igrid">';
+  var gt = 0;
+  monthList.forEach(function(ym) {
+    var cnt = 0, ymK = ym[0]+'-'+pad2(ym[1]), isR = !!realMonths[ymK];
+    var dim = new Date(ym[0],ym[1],0).getDate();
+    for (var d=1;d<=dim;d++) { var k=dk(ym[0],ym[1],d); if(HVC[k]) cnt+=(HVC[k].eventCount||1); }
+    var amt = cnt*1600; gt += amt;
+    h += '<div class="icard"><div class="mn">' + MONTHS_PT[ym[1]].substring(0,3) + '/' + String(ym[0]).substring(2) + (isR?' â':' â³') + '</div>';
+    h += '<div class="amt">R$ ' + amt.toLocaleString('pt-BR') + '</div><div class="sc">' + cnt + ' plt</div></div>';
+  });
+  h += '</div><div class="itotal">Total: R$ ' + gt.toLocaleString('pt-BR') + '</div></div>';
+
+  h += '<div class="refresh-hint" id="refresh-btn">â» Atualizar dados</div>';
+
+  document.getElementById('dashboard').innerHTML = h;
+  bindEvents();
+}
+
+function renderMonth(y, m) {
+  var mN = MONTHS_PT[m] + ' ' + y;
+  var ymK = y+'-'+pad2(m), isR = !!realMonths[ymK];
+  if (y===2026&&m===10) mN += ' (FÃRIAS)';
+  var fd = new Date(y,m-1,1), dim = new Date(y,m,0).getDate();
+  var off = (fd.getDay()+6)%7;
+  var sc=0, hc=0, ec=0;
+  for (var i=1;i<=dim;i++) { var k=dk(y,m,i); if(SOBREAVISOS[k])sc++; if(HVC[k]){hc++;ec+=(HVC[k].eventCount||1);} }
+
+  var h = '<div class="month-section"><div class="month-hdr">' + mN;
+  h += isR ? ' <span class="mtag real">â '+ec+' plt</span>' : ' <span class="mtag">â³ '+hc+' plt</span>';
+  h += ' <span class="mtag">'+sc+' sob</span></div><div class="cgrid">';
+  WD_SHORT.forEach(function(w){h+='<div class="chead">'+w+'</div>';});
+  for(var s=0;s<off;s++) h+='<div class="cday empty"></div>';
+
+  for(var d=1;d<=dim;d++){
+    var key=dk(y,m,d), sob=SOBREAVISOS[key], hvc=HVC[key], hol=FERIADOS[key];
+    var con=CONFLICTS.find(function(c){return c.date===key;});
+    var isPast=key<tKey, isT=key===tKey;
+    var vis=true;
+    if(activeFilter==='sob'&&!sob)vis=false;
+    if(activeFilter==='hvc'&&!hvc)vis=false;
+    if(activeFilter==='hol'&&!hol)vis=false;
+    if(activeFilter==='conf'&&!con)vis=false;
+    if(!vis){h+='<div class="cday empty"><span class="dn" style="opacity:.15">'+d+'</span></div>';continue;}
+
+    var cls='cday';
+    if(con)cls+=' conflict';
+    else if(sob&&hvc)cls+=(hvc.source==='real'?' both':' both-proj');
+    else if(sob)cls+=' sob';
+    else if(hvc)cls+=(hvc.source==='real'?' hvc':' hvc-proj');
+    if(hol)cls+=' hol-border';
+    if(isT)cls+=' today';
+    if(isPast)cls+=' past';
+
+    var ic='';
+    if(con)ic='â '; else{if(sob)ic+='ð ';if(hvc)ic+=(hvc.source==='real'?'ðµ':'â³');}
+    if(hol)ic+='ð¢';
+
+    h+='<div class="'+cls+'" data-day="'+key+'"><span class="dn">'+d+'</span>';
+    if(ic)h+='<div class="di">'+ic+'</div>';
+    h+='</div>';
+  }
+  h+='</div></div>';
+  return h;
+}
+
+// ============ INTERACTIONS ============
+function bindEvents() {
+  document.querySelectorAll('.fbtn').forEach(function(b) {
+    b.addEventListener('click', function() { activeFilter=this.getAttribute('data-f'); render(); });
+  });
+  document.querySelectorAll('[data-acc]').forEach(function(b) {
+    b.addEventListener('click', function() {
+      var c=document.getElementById('acc-'+this.getAttribute('data-acc'));
+      c.classList.toggle('open');
+      this.textContent=c.classList.contains('open')?'ð Fechar':'ð Meses anteriores';
+    });
+  });
+  document.querySelectorAll('[data-day]').forEach(function(el) {
+    el.addEventListener('click', function() { showSheet(this.getAttribute('data-day')); });
+  });
+  var rb = document.getElementById('refresh-btn');
+  if (rb) rb.addEventListener('click', function() { HVC={}; realMonths={}; totalReal=0; CONFLICTS=[]; loadData(); });
+}
+
+function showSheet(key) {
+  var sob=SOBREAVISOS[key], hvc=HVC[key], hol=FERIADOS[key];
+  var con=CONFLICTS.find(function(c){return c.date===key;});
+  if(!sob&&!hvc&&!hol)return;
+
+  var h='<h3>'+wdName(key)+', '+fmtBR(key)+'</h3>';
+  if(hol) h+='<div class="ditem"><div class="dicon" style="background:#10B981"></div>ð '+hol+'</div>';
+  if(sob){
+    var dw=new Date(key+'T12:00:00').getDay();
+    var sd=sob.t==='partial'?'Sobreaviso parcial ('+sob.h+')':(dw===0||dw===6?'Sobreaviso 24h':'Sobreaviso noturno (19h-7h)');
+    h+='<div class="ditem"><div class="dicon" style="background:#D97706"></div>'+sd+'<br><span style="color:#9CA3AF;font-size:11px">Planilha UNICAMP</span></div>';
+  }
+  if(hvc){
+    var st=hvc.source==='real'?'â Pega PlantÃ£o':'â³ ProjeÃ§Ã£o';
+    h+='<div class="ditem"><div class="dicon" style="background:'+(hvc.source==='real'?'#0891B2':'#155E75')+'"></div>'+hvc.label+' ('+hvc.hours+')<br><span style="color:#9CA3AF;font-size:11px">'+st+'</span></div>';
+    if(hvc.eventCount>1) h+='<div class="ditem" style="color:#9CA3AF;padding-left:16px">'+hvc.eventCount+' turnos neste dia</div>';
+  }
+  if(con) h+='<div class="ditem" style="color:#DC2626;font-weight:600"><div class="dicon" style="background:#DC2626"></div>â  Sobreaviso '+con.sobH+' Ã '+con.hvcL+' '+con.hvcH+'</div>';
+
+  document.getElementById('sheet-content').innerHTML = h;
+  document.getElementById('overlay').classList.add('visible');
+  document.getElementById('sheet').classList.add('visible');
+}
+
+document.getElementById('overlay').addEventListener('click', closeSheet);
+function closeSheet() {
+  document.getElementById('overlay').classList.remove('visible');
+  document.getElementById('sheet').classList.remove('visible');
+}
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+
+loadGsi();
+</script>
+</body>
+</html>
