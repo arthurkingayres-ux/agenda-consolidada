@@ -8,8 +8,10 @@
 <meta name="apple-mobile-web-app-title" content="Agenda Arthur">
 <meta name="theme-color" content="#1E3A5F">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.svg">
-<title>Agenda Consolidada â Arthur</title>
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Agenda Consolidada — Arthur</title>
 <style>
 :root { color-scheme: light; --bg: #F9FAFB; --text: #1F2937; --muted: #6B7280; --border: #E5E7EB; --card: white; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -135,16 +137,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI'
 
 <script>
 // =============================================
-// CONFIG â Substitua pelo seu Client ID
+// CONFIG — Substitua pelo seu Client ID
 // =============================================
 var CLIENT_ID = '175749909419-gabqg1h5i6qvjj7su2g8b1sr368r90h4.apps.googleusercontent.com';
 var SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
 var PEGA_CAL_ID = '046759683cb23c692aed5144d5561c4938f6eeab778e6340fed910350facd627@group.calendar.google.com';
 // =============================================
 
-var MONTHS_PT = ['','Janeiro','Fevereiro','MarÃ§o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+var MONTHS_PT = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 var WD_SHORT = ['S','T','Q','Q','S','S','D'];
-var WD_NAMES = ['Domingo','Segunda','TerÃ§a','Quarta','Quinta','Sexta','SÃ¡bado'];
+var WD_NAMES = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 
 var SOBREAVISOS = {
   "2026-03-05":{"t":"full"},"2026-03-06":{"t":"full"},"2026-03-07":{"t":"full"},
@@ -188,15 +190,15 @@ var SOBREAVISOS = {
 };
 
 var FERIADOS = {
-  "2026-04-02":"PaixÃ£o de Cristo","2026-04-21":"Tiradentes",
+  "2026-04-02":"Paixão de Cristo","2026-04-21":"Tiradentes",
   "2026-05-01":"Dia do Trabalho","2026-06-04":"Corpus Christi",
-  "2026-07-09":"Rev. Constitucionalista","2026-09-07":"IndependÃªncia",
+  "2026-07-09":"Rev. Constitucionalista","2026-09-07":"Independência",
   "2026-10-12":"N.S. Aparecida","2026-11-02":"Finados",
-  "2026-11-15":"ProclamaÃ§Ã£o da RepÃºblica","2026-11-20":"ConsciÃªncia Negra",
-  "2026-12-08":"ConceiÃ§Ã£o (Campinas)","2026-12-24":"VÃ©spera de Natal",
-  "2026-12-25":"Natal","2026-12-28":"SuspensÃ£o UNICAMP",
-  "2026-12-29":"SuspensÃ£o UNICAMP","2026-12-30":"SuspensÃ£o UNICAMP",
-  "2026-12-31":"SuspensÃ£o UNICAMP","2027-01-01":"ConfraternizaÃ§Ã£o",
+  "2026-11-15":"Proclamação da República","2026-11-20":"Consciência Negra",
+  "2026-12-08":"Conceição (Campinas)","2026-12-24":"Véspera de Natal",
+  "2026-12-25":"Natal","2026-12-28":"Suspensão UNICAMP",
+  "2026-12-29":"Suspensão UNICAMP","2026-12-30":"Suspensão UNICAMP",
+  "2026-12-31":"Suspensão UNICAMP","2027-01-01":"Confraternização",
   "2027-02-15":"Carnaval","2027-02-16":"Carnaval",
   "2027-02-17":"Carnaval","2027-02-18":"Quarta de Cinzas"
 };
@@ -258,7 +260,7 @@ async function fetchEvents() {
 
 async function loadData() {
   var dash = document.getElementById('dashboard');
-  dash.innerHTML = '<div class="loading"><div class="spinner"></div><br>Carregando Pega PlantÃ£o...</div>';
+  dash.innerHTML = '<div class="loading"><div class="spinner"></div><br>Carregando Pega Plantão...</div>';
 
   try {
     var events = await fetchEvents();
@@ -278,7 +280,7 @@ async function loadData() {
       else label = 'HVC Tarde+Noturno';
       var hrs = pad2(sH) + 'h-' + pad2(eH) + 'h';
       if (HVC[key]) {
-        HVC[key].label = 'HVC (mÃºltiplos)';
+        HVC[key].label = 'HVC (múltiplos)';
         HVC[key].eventCount = (HVC[key].eventCount || 1) + 1;
         var eS = parseInt(HVC[key].hours.split('h-')[0]);
         HVC[key].hours = pad2(Math.min(eS, sH)) + 'h-' + pad2(eH) + 'h';
@@ -304,7 +306,7 @@ async function loadData() {
     if (wc[2]&&wc[2][3]) slots.push({d:wc[2][3],l:'HVC Noturno',h:'19h-07h'});
     slots.forEach(function(s) {
       var key = dk(ym[0], ym[1], s.d);
-      HVC[key] = { label: s.l, hours: s.h, source: 'projeÃ§Ã£o', eventCount: 1 };
+      HVC[key] = { label: s.l, hours: s.h, source: 'projeção', eventCount: 1 };
     });
   });
 
@@ -340,20 +342,20 @@ function render() {
   var tCon = CONFLICTS.find(function(c){return c.date===tKey;});
   h += '<div class="banner"><h2>HOJE</h2>';
   h += '<div class="date-big">' + wdName(tKey) + ', ' + fmtBR(tKey) + '</div><div class="badges">';
-  if (tCon) h += '<span class="badge badge-conflito">â  CONFLITO</span>';
+  if (tCon) h += '<span class="badge badge-conflito">⚠ CONFLITO</span>';
   if (tSob) h += '<span class="badge badge-sob">' + (tSob.t==='partial' ? 'Sobreaviso '+tSob.h : 'Sobreaviso') + '</span>';
-  if (tHvc) h += '<span class="badge ' + (tHvc.source==='real'?'badge-hvc':'badge-hvc-proj') + '">' + tHvc.label + ' ' + tHvc.hours + (tHvc.source==='real'?' â':' â³') + '</span>';
+  if (tHvc) h += '<span class="badge ' + (tHvc.source==='real'?'badge-hvc':'badge-hvc-proj') + '">' + tHvc.label + ' ' + tHvc.hours + (tHvc.source==='real'?' ✓':' ⏳') + '</span>';
   if (tHol) h += '<span class="badge badge-feriado">' + tHol + '</span>';
   if (!tSob&&!tHvc&&!tHol) h += '<span class="badge badge-livre">Dia livre</span>';
   h += '</div></div>';
 
-  h += '<div class="note">Pega PlantÃ£o: ' + totalReal + ' eventos reais Â· Demais meses: projeÃ§Ã£o</div>';
+  h += '<div class="note">Pega Plantão: ' + totalReal + ' eventos reais · Demais meses: projeção</div>';
 
   // Legend
   h += '<div class="legend">';
   h += '<div class="legend-item"><div class="legend-sw" style="background:#FEF3C7;border:1px solid #D97706"></div>Sob</div>';
-  h += '<div class="legend-item"><div class="legend-sw" style="background:#CFFAFE;border:1px solid #0891B2"></div>HVC â</div>';
-  h += '<div class="legend-item"><div class="legend-sw" style="background:#E0F2FE;border:1px dashed #155E75"></div>HVC â³</div>';
+  h += '<div class="legend-item"><div class="legend-sw" style="background:#CFFAFE;border:1px solid #0891B2"></div>HVC ✓</div>';
+  h += '<div class="legend-item"><div class="legend-sw" style="background:#E0F2FE;border:1px dashed #155E75"></div>HVC ⏳</div>';
   h += '<div class="legend-item"><div class="legend-sw" style="background:#EDE9FE;border:1px solid #7C3AED"></div>Ambos</div>';
   h += '<div class="legend-item"><div class="legend-sw" style="background:#FEE2E2;border:2px solid #DC2626"></div>Conflito</div>';
   h += '<div class="legend-item"><div class="legend-sw" style="background:white;box-shadow:inset 0 0 0 2px #10B981"></div>Feriado</div>';
@@ -371,7 +373,7 @@ function render() {
   monthList.forEach(function(ym) { if (ym[0]*100+ym[1] < tYM) past.push(ym); else cur.push(ym); });
 
   if (past.length) {
-    h += '<button class="acc-toggle" data-acc="p">ð Meses anteriores (' + past.length + ')</button>';
+    h += '<button class="acc-toggle" data-acc="p">📁 Meses anteriores (' + past.length + ')</button>';
     h += '<div class="acc-content" id="acc-p">';
     past.forEach(function(ym) { h += renderMonth(ym[0], ym[1]); });
     h += '</div>';
@@ -380,27 +382,27 @@ function render() {
 
   // Conflicts
   if (CONFLICTS.length) {
-    h += '<div class="cflict-list"><h3>â  Conflitos (' + CONFLICTS.length + ')</h3>';
+    h += '<div class="cflict-list"><h3>⚠ Conflitos (' + CONFLICTS.length + ')</h3>';
     CONFLICTS.forEach(function(c) {
-      h += '<div class="centry"><strong>' + fmtBR(c.date) + '</strong> (' + wdName(c.date) + ') â Sob ' + c.sobH + ' Ã ' + c.hvcL + ' ' + c.hvcH + ' <span style="color:#9CA3AF">[' + (c.src==='real'?'â':'â³') + ']</span></div>';
+      h += '<div class="centry"><strong>' + fmtBR(c.date) + '</strong> (' + wdName(c.date) + ') — Sob ' + c.sobH + ' × ' + c.hvcL + ' ' + c.hvcH + ' <span style="color:#9CA3AF">[' + (c.src==='real'?'✓':'⏳') + ']</span></div>';
     });
     h += '</div>';
   }
 
   // Income
-  h += '<div class="income"><h3>ð° ProduÃ§Ã£o HVC</h3><p style="font-size:11px;color:#9CA3AF;margin-bottom:8px">R$ 1.600/plantÃ£o</p><div class="igrid">';
+  h += '<div class="income"><h3>💰 Produção HVC</h3><p style="font-size:11px;color:#9CA3AF;margin-bottom:8px">R$ 1.600/plantão</p><div class="igrid">';
   var gt = 0;
   monthList.forEach(function(ym) {
     var cnt = 0, ymK = ym[0]+'-'+pad2(ym[1]), isR = !!realMonths[ymK];
     var dim = new Date(ym[0],ym[1],0).getDate();
     for (var d=1;d<=dim;d++) { var k=dk(ym[0],ym[1],d); if(HVC[k]) cnt+=(HVC[k].eventCount||1); }
     var amt = cnt*1600; gt += amt;
-    h += '<div class="icard"><div class="mn">' + MONTHS_PT[ym[1]].substring(0,3) + '/' + String(ym[0]).substring(2) + (isR?' â':' â³') + '</div>';
+    h += '<div class="icard"><div class="mn">' + MONTHS_PT[ym[1]].substring(0,3) + '/' + String(ym[0]).substring(2) + (isR?' ✓':' ⏳') + '</div>';
     h += '<div class="amt">R$ ' + amt.toLocaleString('pt-BR') + '</div><div class="sc">' + cnt + ' plt</div></div>';
   });
   h += '</div><div class="itotal">Total: R$ ' + gt.toLocaleString('pt-BR') + '</div></div>';
 
-  h += '<div class="refresh-hint" id="refresh-btn">â» Atualizar dados</div>';
+  h += '<div class="refresh-hint" id="refresh-btn">↻ Atualizar dados</div>';
 
   document.getElementById('dashboard').innerHTML = h;
   bindEvents();
@@ -409,14 +411,14 @@ function render() {
 function renderMonth(y, m) {
   var mN = MONTHS_PT[m] + ' ' + y;
   var ymK = y+'-'+pad2(m), isR = !!realMonths[ymK];
-  if (y===2026&&m===10) mN += ' (FÃRIAS)';
+  if (y===2026&&m===10) mN += ' (FÉRIAS)';
   var fd = new Date(y,m-1,1), dim = new Date(y,m,0).getDate();
   var off = (fd.getDay()+6)%7;
   var sc=0, hc=0, ec=0;
   for (var i=1;i<=dim;i++) { var k=dk(y,m,i); if(SOBREAVISOS[k])sc++; if(HVC[k]){hc++;ec+=(HVC[k].eventCount||1);} }
 
   var h = '<div class="month-section"><div class="month-hdr">' + mN;
-  h += isR ? ' <span class="mtag real">â '+ec+' plt</span>' : ' <span class="mtag">â³ '+hc+' plt</span>';
+  h += isR ? ' <span class="mtag real">✓ '+ec+' plt</span>' : ' <span class="mtag">⏳ '+hc+' plt</span>';
   h += ' <span class="mtag">'+sc+' sob</span></div><div class="cgrid">';
   WD_SHORT.forEach(function(w){h+='<div class="chead">'+w+'</div>';});
   for(var s=0;s<off;s++) h+='<div class="cday empty"></div>';
@@ -442,8 +444,8 @@ function renderMonth(y, m) {
     if(isPast)cls+=' past';
 
     var ic='';
-    if(con)ic='â '; else{if(sob)ic+='ð ';if(hvc)ic+=(hvc.source==='real'?'ðµ':'â³');}
-    if(hol)ic+='ð¢';
+    if(con)ic='⚠'; else{if(sob)ic+='🟠';if(hvc)ic+=(hvc.source==='real'?'🔵':'⏳');}
+    if(hol)ic+='🟢';
 
     h+='<div class="'+cls+'" data-day="'+key+'"><span class="dn">'+d+'</span>';
     if(ic)h+='<div class="di">'+ic+'</div>';
@@ -462,7 +464,7 @@ function bindEvents() {
     b.addEventListener('click', function() {
       var c=document.getElementById('acc-'+this.getAttribute('data-acc'));
       c.classList.toggle('open');
-      this.textContent=c.classList.contains('open')?'ð Fechar':'ð Meses anteriores';
+      this.textContent=c.classList.contains('open')?'📂 Fechar':'📁 Meses anteriores';
     });
   });
   document.querySelectorAll('[data-day]').forEach(function(el) {
@@ -478,18 +480,18 @@ function showSheet(key) {
   if(!sob&&!hvc&&!hol)return;
 
   var h='<h3>'+wdName(key)+', '+fmtBR(key)+'</h3>';
-  if(hol) h+='<div class="ditem"><div class="dicon" style="background:#10B981"></div>ð '+hol+'</div>';
+  if(hol) h+='<div class="ditem"><div class="dicon" style="background:#10B981"></div>🏛 '+hol+'</div>';
   if(sob){
     var dw=new Date(key+'T12:00:00').getDay();
     var sd=sob.t==='partial'?'Sobreaviso parcial ('+sob.h+')':(dw===0||dw===6?'Sobreaviso 24h':'Sobreaviso noturno (19h-7h)');
     h+='<div class="ditem"><div class="dicon" style="background:#D97706"></div>'+sd+'<br><span style="color:#9CA3AF;font-size:11px">Planilha UNICAMP</span></div>';
   }
   if(hvc){
-    var st=hvc.source==='real'?'â Pega PlantÃ£o':'â³ ProjeÃ§Ã£o';
+    var st=hvc.source==='real'?'✓ Pega Plantão':'⏳ Projeção';
     h+='<div class="ditem"><div class="dicon" style="background:'+(hvc.source==='real'?'#0891B2':'#155E75')+'"></div>'+hvc.label+' ('+hvc.hours+')<br><span style="color:#9CA3AF;font-size:11px">'+st+'</span></div>';
     if(hvc.eventCount>1) h+='<div class="ditem" style="color:#9CA3AF;padding-left:16px">'+hvc.eventCount+' turnos neste dia</div>';
   }
-  if(con) h+='<div class="ditem" style="color:#DC2626;font-weight:600"><div class="dicon" style="background:#DC2626"></div>â  Sobreaviso '+con.sobH+' Ã '+con.hvcL+' '+con.hvcH+'</div>';
+  if(con) h+='<div class="ditem" style="color:#DC2626;font-weight:600"><div class="dicon" style="background:#DC2626"></div>⚠ Sobreaviso '+con.sobH+' × '+con.hvcL+' '+con.hvcH+'</div>';
 
   document.getElementById('sheet-content').innerHTML = h;
   document.getElementById('overlay').classList.add('visible');
