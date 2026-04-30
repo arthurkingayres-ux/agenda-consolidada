@@ -543,7 +543,7 @@ function showSheet(key) {
   }
   if(hvc){
     var st=hvc.source==='real'?'✓ Pega Plantão':'⏳ Projeção';
-    h+='<div class="ditem"><div class="dicon" style="background:'+(hvc.source==='real'?'#0891B2':'#155E75')+'"></div>'+hvc.label+' ('+hvc.hours+')<br><span style="color:#9CA3AF;font-size:11px">'+st+'</span></div>';
+    h+='<div class="ditem"><div class="dicon" style="background:'+(hvc.source==='real'?'#0891B2':'#155E75')+'"></div>'+hvc.label+' ('+hvc.hours+')<br><span style="color:#9CA3AF;font-size:11px">'+st+' · '+fmtPlt(hvc.weight||0)+' plt</span></div>';
     if(hvc.eventCount>1) h+='<div class="ditem" style="color:#9CA3AF;padding-left:16px">'+hvc.eventCount+' turnos neste dia</div>';
   }
   if(con) h+='<div class="ditem" style="color:#DC2626;font-weight:600"><div class="dicon" style="background:#DC2626"></div>⚠ Sobreaviso '+con.sobH+' × '+con.hvcL+' '+con.hvcH+'</div>';
