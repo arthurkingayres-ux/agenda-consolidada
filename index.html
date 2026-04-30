@@ -469,11 +469,11 @@ function renderMonth(y, m) {
   if (y===2026&&m===10) mN += ' (FÉRIAS)';
   var fd = new Date(y,m-1,1), dim = new Date(y,m,0).getDate();
   var off = (fd.getDay()+6)%7;
-  var sc=0, hc=0, ec=0;
-  for (var i=1;i<=dim;i++) { var k=dk(y,m,i); if(SOBREAVISOS[k])sc++; if(HVC[k]){hc++;ec+=(HVC[k].eventCount||1);} }
+  var sc=0, wt=0;
+  for (var i=1;i<=dim;i++) { var k=dk(y,m,i); if(SOBREAVISOS[k])sc++; if(HVC[k])wt+=(HVC[k].weight||0); }
 
   var h = '<div class="month-section"><div class="month-hdr">' + mN;
-  h += isR ? ' <span class="mtag real">✓ '+ec+' plt</span>' : ' <span class="mtag">⏳ '+hc+' plt</span>';
+  h += isR ? ' <span class="mtag real">✓ '+fmtPlt(wt)+' plt</span>' : ' <span class="mtag">⏳ '+fmtPlt(wt)+' plt</span>';
   h += ' <span class="mtag">'+sc+' sob</span></div><div class="cgrid">';
   WD_SHORT.forEach(function(w){h+='<div class="chead">'+w+'</div>';});
   for(var s=0;s<off;s++) h+='<div class="cday empty"></div>';
