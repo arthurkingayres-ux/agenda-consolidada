@@ -445,15 +445,15 @@ function render() {
   }
 
   // Income
-  h += '<div class="income"><h3>💰 Produção HVC</h3><p style="font-size:11px;color:#9CA3AF;margin-bottom:8px">R$ 1.600/plantão</p><div class="igrid">';
+  h += '<div class="income"><h3>💰 Produção HVC</h3><p style="font-size:11px;color:#9CA3AF;margin-bottom:8px">R$ 1.700/plantão</p><div class="igrid">';
   var gt = 0;
   monthList.forEach(function(ym) {
-    var cnt = 0, ymK = ym[0]+'-'+pad2(ym[1]), isR = !!realMonths[ymK];
+    var wt = 0, ymK = ym[0]+'-'+pad2(ym[1]), isR = !!realMonths[ymK];
     var dim = new Date(ym[0],ym[1],0).getDate();
-    for (var d=1;d<=dim;d++) { var k=dk(ym[0],ym[1],d); if(HVC[k]) cnt+=(HVC[k].eventCount||1); }
-    var amt = cnt*1600; gt += amt;
+    for (var d=1;d<=dim;d++) { var k=dk(ym[0],ym[1],d); if(HVC[k]) wt+=(HVC[k].weight||0); }
+    var amt = wt*1700; gt += amt;
     h += '<div class="icard"><div class="mn">' + MONTHS_PT[ym[1]].substring(0,3) + '/' + String(ym[0]).substring(2) + (isR?' ✓':' ⏳') + '</div>';
-    h += '<div class="amt">R$ ' + amt.toLocaleString('pt-BR') + '</div><div class="sc">' + cnt + ' plt</div></div>';
+    h += '<div class="amt">R$ ' + amt.toLocaleString('pt-BR') + '</div><div class="sc">' + fmtPlt(wt) + ' plt</div></div>';
   });
   h += '</div><div class="itotal">Total: R$ ' + gt.toLocaleString('pt-BR') + '</div></div>';
 
