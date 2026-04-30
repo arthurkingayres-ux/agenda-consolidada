@@ -353,15 +353,15 @@ async function loadData() {
     var wc = {};
     for (var i = 1; i <= dim; i++) { var dw = new Date(ym[0], ym[1]-1, i).getDay(); if(!wc[dw]) wc[dw]=[]; wc[dw].push(i); }
     var slots = [];
-    if (wc[5]&&wc[5][0]) slots.push({d:wc[5][0],l:'HVC Noturno',h:'19h-07h'});
-    if (wc[6]&&wc[6][1]) slots.push({d:wc[6][1],l:'HVC Diurno',h:'07h-19h'});
-    if (wc[0]&&wc[0][1]) slots.push({d:wc[0][1],l:'HVC Tarde+Noturno',h:'13h-07h'});
-    if (wc[2]&&wc[2][1]) slots.push({d:wc[2][1],l:'HVC Noturno',h:'19h-07h'});
-    if (wc[5]&&wc[5][2]) slots.push({d:wc[5][2],l:'HVC Noturno',h:'19h-07h'});
-    if (wc[2]&&wc[2][3]) slots.push({d:wc[2][3],l:'HVC Noturno',h:'19h-07h'});
+    if (wc[5]&&wc[5][0]) slots.push({d:wc[5][0],l:'HVC Noturno',h:'19h-07h',w:1.0});
+    if (wc[6]&&wc[6][1]) slots.push({d:wc[6][1],l:'HVC Diurno',h:'07h-19h',w:1.0});
+    if (wc[0]&&wc[0][1]) slots.push({d:wc[0][1],l:'HVC Tarde+Noturno',h:'13h-07h',w:1.5});
+    if (wc[2]&&wc[2][1]) slots.push({d:wc[2][1],l:'HVC Noturno',h:'19h-07h',w:1.0});
+    if (wc[5]&&wc[5][2]) slots.push({d:wc[5][2],l:'HVC Noturno',h:'19h-07h',w:1.0});
+    if (wc[2]&&wc[2][3]) slots.push({d:wc[2][3],l:'HVC Noturno',h:'19h-07h',w:1.0});
     slots.forEach(function(s) {
       var key = dk(ym[0], ym[1], s.d);
-      HVC[key] = { label: s.l, hours: s.h, source: 'projeção', eventCount: 1 };
+      HVC[key] = { label: s.l, hours: s.h, source: 'projeção', eventCount: 1, weight: s.w };
     });
   });
 
