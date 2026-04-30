@@ -322,6 +322,7 @@ async function loadData() {
       var st = new Date(ev.start.dateTime);
       var en = new Date(ev.end.dateTime);
       var sH = st.getHours(), eH = en.getHours();
+      var w = (en.getTime() - st.getTime()) / (1000 * 60 * 60 * 12);
       var key = dk(st.getFullYear(), st.getMonth()+1, st.getDate());
       var ymK = st.getFullYear() + '-' + pad2(st.getMonth()+1);
       realMonths[ymK] = true;
@@ -335,10 +336,11 @@ async function loadData() {
       if (HVC[key]) {
         HVC[key].label = 'HVC (múltiplos)';
         HVC[key].eventCount = (HVC[key].eventCount || 1) + 1;
+        HVC[key].weight = (HVC[key].weight || 0) + w;
         var eS = parseInt(HVC[key].hours.split('h-')[0]);
         HVC[key].hours = pad2(Math.min(eS, sH)) + 'h-' + pad2(eH) + 'h';
       } else {
-        HVC[key] = { label: label, hours: hrs, source: 'real', eventCount: 1 };
+        HVC[key] = { label: label, hours: hrs, source: 'real', eventCount: 1, weight: w };
       }
     });
   } catch(e) { /* continue with projections */ }
