@@ -222,6 +222,10 @@ function dk(y,m,d) { return y + '-' + pad2(m) + '-' + pad2(d); }
 function fmtBR(k) { var p = k.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
 function wdName(k) { return WD_NAMES[new Date(k + 'T12:00:00').getDay()]; }
 function todayK() { var d = new Date(); return dk(d.getFullYear(), d.getMonth()+1, d.getDate()); }
+function fmtPlt(n) {
+  if (n % 1 === 0) return String(n);
+  return n.toFixed(1).replace('.', ',');
+}
 
 var HVC = {};
 var realMonths = {};
