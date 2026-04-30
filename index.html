@@ -222,6 +222,10 @@ function dk(y,m,d) { return y + '-' + pad2(m) + '-' + pad2(d); }
 function fmtBR(k) { var p = k.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
 function wdName(k) { return WD_NAMES[new Date(k + 'T12:00:00').getDay()]; }
 function todayK() { var d = new Date(); return dk(d.getFullYear(), d.getMonth()+1, d.getDate()); }
+function fmtPlt(n) {
+  if (n % 1 === 0) return String(n);
+  return n.toFixed(1).replace('.', ',');
+}
 
 var HVC = {};
 var realMonths = {};
@@ -318,6 +322,7 @@ async function loadData() {
       var st = new Date(ev.start.dateTime);
       var en = new Date(ev.end.dateTime);
       var sH = st.getHours(), eH = en.getHours();
+      var w = (en.getTime() - st.getTime()) / (1000 * 60 * 60 * 12);
       var key = dk(st.getFullYear(), st.getMonth()+1, st.getDate());
       var ymK = st.getFullYear() + '-' + pad2(st.getMonth()+1);
       realMonths[ymK] = true;
@@ -331,10 +336,11 @@ async function loadData() {
       if (HVC[key]) {
         HVC[key].label = 'HVC (múltiplos)';
         HVC[key].eventCount = (HVC[key].eventCount || 1) + 1;
+        HVC[key].weight = (HVC[key].weight || 0) + w;
         var eS = parseInt(HVC[key].hours.split('h-')[0]);
         HVC[key].hours = pad2(Math.min(eS, sH)) + 'h-' + pad2(eH) + 'h';
       } else {
-        HVC[key] = { label: label, hours: hrs, source: 'real', eventCount: 1 };
+        HVC[key] = { label: label, hours: hrs, source: 'real', eventCount: 1, weight: w };
       }
     });
   } catch(e) { /* continue with projections */ }
@@ -347,15 +353,15 @@ async function loadData() {
     var wc = {};
     for (var i = 1; i <= dim; i++) { var dw = new Date(ym[0], ym[1]-1, i).getDay(); if(!wc[dw]) wc[dw]=[]; wc[dw].push(i); }
     var slots = [];
-    if (wc[5]&&wc[5][0]) slots.push({d:wc[5][0],l:'HVC Noturno',h:'19h-07h'});
-    if (wc[6]&&wc[6][1]) slots.push({d:wc[6][1],l:'HVC Diurno',h:'07h-19h'});
-    if (wc[0]&&wc[0][1]) slots.push({d:wc[0][1],l:'HVC Tarde+Noturno',h:'13h-07h'});
-    if (wc[2]&&wc[2][1]) slots.push({d:wc[2][1],l:'HVC Noturno',h:'19h-07h'});
-    if (wc[5]&&wc[5][2]) slots.push({d:wc[5][2],l:'HVC Noturno',h:'19h-07h'});
-    if (wc[2]&&wc[2][3]) slots.push({d:wc[2][3],l:'HVC Noturno',h:'19h-07h'});
+    if (wc[5]&&wc[5][0]) slots.push({d:wc[5][0],l:'HVC Noturno',h:'19h-07h',w:1.0});
+    if (wc[6]&&wc[6][1]) slots.push({d:wc[6][1],l:'HVC Diurno',h:'07h-19h',w:1.0});
+    if (wc[0]&&wc[0][1]) slots.push({d:wc[0][1],l:'HVC Tarde+Noturno',h:'13h-07h',w:1.5});
+    if (wc[2]&&wc[2][1]) slots.push({d:wc[2][1],l:'HVC Noturno',h:'19h-07h',w:1.0});
+    if (wc[5]&&wc[5][2]) slots.push({d:wc[5][2],l:'HVC Noturno',h:'19h-07h',w:1.0});
+    if (wc[2]&&wc[2][3]) slots.push({d:wc[2][3],l:'HVC Noturno',h:'19h-07h',w:1.0});
     slots.forEach(function(s) {
       var key = dk(ym[0], ym[1], s.d);
-      HVC[key] = { label: s.l, hours: s.h, source: 'projeção', eventCount: 1 };
+      HVC[key] = { label: s.l, hours: s.h, source: 'projeção', eventCount: 1, weight: s.w };
     });
   });
 
@@ -439,15 +445,15 @@ function render() {
   }
 
   // Income
-  h += '<div class="income"><h3>💰 Produção HVC</h3><p style="font-size:11px;color:#9CA3AF;margin-bottom:8px">R$ 1.600/plantão</p><div class="igrid">';
+  h += '<div class="income"><h3>💰 Produção HVC</h3><p style="font-size:11px;color:#9CA3AF;margin-bottom:8px">R$ 1.700/plantão</p><div class="igrid">';
   var gt = 0;
   monthList.forEach(function(ym) {
-    var cnt = 0, ymK = ym[0]+'-'+pad2(ym[1]), isR = !!realMonths[ymK];
+    var wt = 0, ymK = ym[0]+'-'+pad2(ym[1]), isR = !!realMonths[ymK];
     var dim = new Date(ym[0],ym[1],0).getDate();
-    for (var d=1;d<=dim;d++) { var k=dk(ym[0],ym[1],d); if(HVC[k]) cnt+=(HVC[k].eventCount||1); }
-    var amt = cnt*1600; gt += amt;
+    for (var d=1;d<=dim;d++) { var k=dk(ym[0],ym[1],d); if(HVC[k]) wt+=(HVC[k].weight||0); }
+    var amt = wt*1700; gt += amt;
     h += '<div class="icard"><div class="mn">' + MONTHS_PT[ym[1]].substring(0,3) + '/' + String(ym[0]).substring(2) + (isR?' ✓':' ⏳') + '</div>';
-    h += '<div class="amt">R$ ' + amt.toLocaleString('pt-BR') + '</div><div class="sc">' + cnt + ' plt</div></div>';
+    h += '<div class="amt">R$ ' + amt.toLocaleString('pt-BR') + '</div><div class="sc">' + fmtPlt(wt) + ' plt</div></div>';
   });
   h += '</div><div class="itotal">Total: R$ ' + gt.toLocaleString('pt-BR') + '</div></div>';
 
@@ -463,11 +469,11 @@ function renderMonth(y, m) {
   if (y===2026&&m===10) mN += ' (FÉRIAS)';
   var fd = new Date(y,m-1,1), dim = new Date(y,m,0).getDate();
   var off = (fd.getDay()+6)%7;
-  var sc=0, hc=0, ec=0;
-  for (var i=1;i<=dim;i++) { var k=dk(y,m,i); if(SOBREAVISOS[k])sc++; if(HVC[k]){hc++;ec+=(HVC[k].eventCount||1);} }
+  var sc=0, wt=0;
+  for (var i=1;i<=dim;i++) { var k=dk(y,m,i); if(SOBREAVISOS[k])sc++; if(HVC[k])wt+=(HVC[k].weight||0); }
 
   var h = '<div class="month-section"><div class="month-hdr">' + mN;
-  h += isR ? ' <span class="mtag real">✓ '+ec+' plt</span>' : ' <span class="mtag">⏳ '+hc+' plt</span>';
+  h += isR ? ' <span class="mtag real">✓ '+fmtPlt(wt)+' plt</span>' : ' <span class="mtag">⏳ '+fmtPlt(wt)+' plt</span>';
   h += ' <span class="mtag">'+sc+' sob</span></div><div class="cgrid">';
   WD_SHORT.forEach(function(w){h+='<div class="chead">'+w+'</div>';});
   for(var s=0;s<off;s++) h+='<div class="cday empty"></div>';
@@ -537,7 +543,7 @@ function showSheet(key) {
   }
   if(hvc){
     var st=hvc.source==='real'?'✓ Pega Plantão':'⏳ Projeção';
-    h+='<div class="ditem"><div class="dicon" style="background:'+(hvc.source==='real'?'#0891B2':'#155E75')+'"></div>'+hvc.label+' ('+hvc.hours+')<br><span style="color:#9CA3AF;font-size:11px">'+st+'</span></div>';
+    h+='<div class="ditem"><div class="dicon" style="background:'+(hvc.source==='real'?'#0891B2':'#155E75')+'"></div>'+hvc.label+' ('+hvc.hours+')<br><span style="color:#9CA3AF;font-size:11px">'+st+' · '+fmtPlt(hvc.weight||0)+' plt</span></div>';
     if(hvc.eventCount>1) h+='<div class="ditem" style="color:#9CA3AF;padding-left:16px">'+hvc.eventCount+' turnos neste dia</div>';
   }
   if(con) h+='<div class="ditem" style="color:#DC2626;font-weight:600"><div class="dicon" style="background:#DC2626"></div>⚠ Sobreaviso '+con.sobH+' × '+con.hvcL+' '+con.hvcH+'</div>';
