@@ -143,6 +143,8 @@ var CLIENT_ID = '175749909419-gabqg1h5i6qvjj7su2g8b1sr368r90h4.apps.googleuserco
 var SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
 var PEGA_CAL_ID = '046759683cb23c692aed5144d5561c4938f6eeab778e6340fed910350facd627@group.calendar.google.com';
 // =============================================
+var VAPID_PUBLIC_KEY = 'BMC1eR4GM7HHcUNs6MPPlvsoxrDCh3vGhAg5QfPzZYHapBn_p2DmGoXge0hOxIvy27zWbgBm96JmbffNF0lb08E';
+var WORKER_URL = 'https://agenda-arthur-notifications.arthurkingayres.workers.dev';
 
 var MONTHS_PT = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 var WD_SHORT = ['S','T','Q','Q','S','S','D'];
@@ -379,6 +381,7 @@ async function loadData() {
   });
 
   render();
+  registerNotifications();
 }
 
 function phr(h) {
@@ -562,6 +565,48 @@ function closeSheet() {
 // Register service worker
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+
+function urlBase64ToUint8Array(b64) {
+  var padding = '='.repeat((4 - b64.length % 4) % 4);
+  var base64 = (b64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(base64), function(c) { return c.charCodeAt(0); });
+}
+
+async function registerNotifications() {
+  if (!('Notification' in window) || !('PushManager' in window)) return;
+  if (Notification.permission === 'denied') return;
+  if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.startsWith('PASTE')) return;
+  if (!WORKER_URL || WORKER_URL.startsWith('PASTE')) return;
+
+  try {
+    var permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    var reg = await navigator.serviceWorker.ready;
+    var subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+
+    var tK = todayK();
+    var events = [];
+    Object.keys(HVC).sort().forEach(function(key) {
+      if (key < tK) return;
+      var hvc = HVC[key];
+      var startHour = parseInt(hvc.hours.split('h')[0], 10);
+      var isoTime = key + 'T' + pad2(startHour) + ':00:00-03:00';
+      events.push({ isoTime: isoTime, label: hvc.label, hours: hvc.hours, source: hvc.source });
+    });
+
+    await fetch(WORKER_URL + '/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: subscription.toJSON(), events: events })
+    });
+  } catch(e) {
+    // Notificações são best-effort; falha silenciosa
+  }
 }
 
 loadGsi();
