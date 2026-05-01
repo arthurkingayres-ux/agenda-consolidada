@@ -595,7 +595,7 @@ async function registerNotifications() {
       if (key < tK) return;
       var hvc = HVC[key];
       var startHour = parseInt(hvc.hours.split('h')[0], 10);
-      var isoTime = new Date(key + 'T' + pad2(startHour) + ':00:00-03:00').toISOString();
+      var isoTime = key + 'T' + pad2(startHour) + ':00:00-03:00';
       events.push({ isoTime: isoTime, label: hvc.label, hours: hvc.hours, source: hvc.source });
     });
 
