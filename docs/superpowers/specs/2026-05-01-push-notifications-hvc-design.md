@@ -160,14 +160,21 @@ ou
 
 ## Setup (uma vez só)
 
-1. `npm install -g wrangler` → `wrangler login`
-2. `npx web-push generate-vapid-keys` → anota pública e privada
-3. `wrangler kv:namespace create STORE` → copia o ID para `wrangler.toml`
-4. `wrangler secret put VAPID_PRIVATE_KEY`
-5. `wrangler secret put VAPID_SUBJECT`
-6. `wrangler deploy`
-7. Atualiza `VAPID_PUBLIC_KEY` e `WORKER_URL` em `index.html`
-8. Commit e push para GitHub Pages
+O setup do Cloudflare será feito via **Playwright MCP** (automação de browser), não via CLI — mais simples e sem necessidade de instalar Wrangler localmente para o passo de configuração da plataforma.
+
+Passos:
+1. `npx web-push generate-vapid-keys` → gera par de chaves VAPID
+2. **Playwright MCP** abre `dash.cloudflare.com`:
+   - Cria conta (se necessário) ou faz login
+   - Cria Worker `agenda-arthur-notifications`
+   - Cria KV namespace `STORE` e vincula ao Worker
+   - Cola o código do `src/index.js` no editor online
+   - Adiciona secrets `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` via Settings → Variables
+   - Configura Cron Trigger `0 * * * *` via Settings → Triggers
+   - Faz deploy
+   - Anota a URL do Worker (`*.workers.dev`)
+3. Atualiza `VAPID_PUBLIC_KEY` e `WORKER_URL` em `index.html`
+4. Commit e push para GitHub Pages
 
 ---
 
