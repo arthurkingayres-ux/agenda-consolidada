@@ -28,6 +28,7 @@ async function hmac256(key, data) {
 }
 
 async function hkdfExpand(prk, info, len) {
+  if (len > 32) throw new Error('hkdfExpand: len must be <= 32 (single block)');
   return (await hmac256(prk, concat(info, new Uint8Array([1])))).slice(0, len);
 }
 
@@ -135,7 +136,7 @@ function corsHeaders(origin, allowed) {
   };
 }
 
-// ── Worker ───────────────────────────────────────────────name───────────────
+// ── Worker ───────────────────────────────────────────────────────────────────
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
