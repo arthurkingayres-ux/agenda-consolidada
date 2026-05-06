@@ -1,4 +1,4 @@
-var CACHE = 'agenda-arthur-v4';
+var CACHE = 'agenda-arthur-v5';
 var URLS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', function(e) {

@@ -486,6 +486,7 @@ function render() {
   h += '</div><div class="itotal">Total: R$ ' + gt.toLocaleString('pt-BR') + '</div></div>';
 
   h += '<div class="refresh-hint" id="refresh-btn">↻ Atualizar dados</div>';
+  h += '<div class="note" style="margin-top:4px">build v5</div>';
 
   document.getElementById('dashboard').innerHTML = h;
   bindEvents();
@@ -613,30 +614,37 @@ function urlBase64ToUint8Array(b64) {
   return Uint8Array.from(atob(base64), function(c) { return c.charCodeAt(0); });
 }
 
-var pushDiag = ''; // mensagem visível na UI se algo falhar
+var pushDiag = ''; // mensagem visível na UI durante/após o fluxo
+
+function pushStep(msg) {
+  pushDiag = msg;
+  console.log('[push]', msg);
+  try { render(); } catch(e) {}
+}
 
 function pushFail(msg) {
   pushDiag = msg;
   console.warn('[push]', msg);
+  try { render(); } catch(e) {}
   return false;
 }
 
 async function registerNotifications() {
-  pushDiag = 'iniciando…';
+  pushStep('iniciando…');
   if (!('Notification' in window) || !('PushManager' in window)) return pushFail('API não suportada');
   if (Notification.permission === 'denied') return pushFail('permissão negada — reative em Ajustes');
   if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.startsWith('PASTE')) return pushFail('VAPID_PUBLIC_KEY ausente');
   if (!WORKER_URL || WORKER_URL.startsWith('PASTE')) return pushFail('WORKER_URL ausente');
 
   try {
-    pushDiag = 'pedindo permissão…';
+    pushStep('pedindo permissão…');
     var permission = await Notification.requestPermission();
     if (permission !== 'granted') return pushFail('permissão: ' + permission);
 
-    pushDiag = 'aguardando service worker…';
+    pushStep('aguardando service worker…');
     var reg = await navigator.serviceWorker.ready;
 
-    pushDiag = 'subscribe no push service…';
+    pushStep('subscribe no push service…');
     var subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
@@ -652,7 +660,7 @@ async function registerNotifications() {
       events.push({ isoTime: isoTime, label: hvc.label, hours: hvc.hours, source: hvc.source });
     });
 
-    pushDiag = 'enviando subscription ao Worker…';
+    pushStep('enviando subscription ao Worker (' + events.length + ' eventos)…');
     var resp = await fetch(WORKER_URL + '/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
