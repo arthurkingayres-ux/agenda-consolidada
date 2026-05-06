@@ -117,6 +117,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI'
 /* Pull to refresh hint */
 .refresh-hint { text-align: center; font-size: 11px; color: var(--muted); padding: 8px; cursor: pointer; }
 .refresh-hint:active { color: #0891B2; }
+
+/* Push notification prompt */
+.push-prompt { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; font-size: 12px; color: #92400E; }
+.push-prompt-text { flex: 1; line-height: 1.3; }
+.push-prompt-btn { background: #D97706; color: white; border: none; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+.push-prompt-btn:active { transform: scale(0.96); }
+.push-prompt.denied { background: #FEE2E2; border-color: #DC2626; color: #991B1B; }
 </style>
 </head>
 <body>
@@ -381,7 +388,11 @@ async function loadData() {
   });
 
   render();
-  registerNotifications();
+  // Só auto-registra se a permissão JÁ foi concedida (não exige user gesture).
+  // Caso contrário, o botão "Ativar lembretes" no dashboard cuida do prompt.
+  if ('Notification' in window && Notification.permission === 'granted') {
+    registerNotifications();
+  }
 }
 
 function phr(h) {
@@ -408,6 +419,15 @@ function render() {
   h += '</div></div>';
 
   h += '<div class="note">Pega Plantão: ' + totalReal + ' eventos reais · Demais meses: projeção</div>';
+
+  // Push prompt (só aparece se push é suportado e permissão ainda não foi concedida)
+  if ('Notification' in window && 'PushManager' in window && Notification.permission !== 'granted') {
+    if (Notification.permission === 'denied') {
+      h += '<div class="push-prompt denied"><div class="push-prompt-text">🔕 Notificações bloqueadas. Reative em Ajustes → Agenda Arthur → Notificações.</div></div>';
+    } else {
+      h += '<div class="push-prompt"><div class="push-prompt-text">🔔 Ativar lembretes (24h e 1h antes de cada plantão HVC)</div><button class="push-prompt-btn" id="push-activate-btn">Ativar</button></div>';
+    }
+  }
 
   // Legend
   h += '<div class="legend">';
@@ -530,6 +550,15 @@ function bindEvents() {
   });
   var rb = document.getElementById('refresh-btn');
   if (rb) rb.addEventListener('click', function() { HVC={}; realMonths={}; totalReal=0; CONFLICTS=[]; loadData(); });
+  var pb = document.getElementById('push-activate-btn');
+  if (pb) pb.addEventListener('click', function() {
+    pb.disabled = true;
+    pb.textContent = '...';
+    registerNotifications().then(function(ok) {
+      if (ok) render(); // re-render para esconder o prompt
+      else { pb.disabled = false; pb.textContent = 'Ativar'; }
+    });
+  });
 }
 
 function showSheet(key) {
@@ -574,14 +603,29 @@ function urlBase64ToUint8Array(b64) {
 }
 
 async function registerNotifications() {
-  if (!('Notification' in window) || !('PushManager' in window)) return;
-  if (Notification.permission === 'denied') return;
-  if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.startsWith('PASTE')) return;
-  if (!WORKER_URL || WORKER_URL.startsWith('PASTE')) return;
+  if (!('Notification' in window) || !('PushManager' in window)) {
+    console.warn('[push] API não suportada neste navegador');
+    return false;
+  }
+  if (Notification.permission === 'denied') {
+    console.warn('[push] permissão negada — reative em Ajustes do sistema');
+    return false;
+  }
+  if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.startsWith('PASTE')) {
+    console.warn('[push] VAPID_PUBLIC_KEY não configurado');
+    return false;
+  }
+  if (!WORKER_URL || WORKER_URL.startsWith('PASTE')) {
+    console.warn('[push] WORKER_URL não configurado');
+    return false;
+  }
 
   try {
     var permission = await Notification.requestPermission();
-    if (permission !== 'granted') return;
+    if (permission !== 'granted') {
+      console.warn('[push] permissão não concedida:', permission);
+      return false;
+    }
 
     var reg = await navigator.serviceWorker.ready;
     var subscription = await reg.pushManager.subscribe({
@@ -599,13 +643,20 @@ async function registerNotifications() {
       events.push({ isoTime: isoTime, label: hvc.label, hours: hvc.hours, source: hvc.source });
     });
 
-    await fetch(WORKER_URL + '/subscribe', {
+    var resp = await fetch(WORKER_URL + '/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subscription: subscription.toJSON(), events: events })
     });
+    if (!resp.ok) {
+      console.warn('[push] /subscribe respondeu', resp.status);
+      return false;
+    }
+    console.log('[push] inscrito com sucesso (' + events.length + ' eventos enviados)');
+    return true;
   } catch(e) {
-    // Notificações são best-effort; falha silenciosa
+    console.warn('[push] falha no registro:', e && e.message ? e.message : e);
+    return false;
   }
 }
 
