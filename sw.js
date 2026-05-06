@@ -1,8 +1,21 @@
-var CACHE = 'agenda-arthur-v5';
-var URLS = ['/', '/index.html', '/manifest.json'];
+var CACHE = 'agenda-arthur-v6';
+// URLs relativas ao escopo do SW (em GitHub Pages project site o scope
+// é /<repo>/, então './' aponta corretamente em vez de '/').
+var URLS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', function(e) {
-  e.waitUntil(caches.open(CACHE).then(function(c) { return c.addAll(URLS); }));
+  // Cache best-effort — se algum URL falhar, NÃO bloqueia o install.
+  // (caches.addAll rejeita o batch inteiro se qualquer um falhar; usamos
+  // Promise.allSettled com puts individuais pra tolerar 404.)
+  e.waitUntil(
+    caches.open(CACHE).then(function(c) {
+      return Promise.allSettled(URLS.map(function(u) {
+        return fetch(u, { cache: 'no-cache' }).then(function(r) {
+          if (r.ok) return c.put(u, r);
+        });
+      }));
+    })
+  );
   self.skipWaiting();
 });
 
