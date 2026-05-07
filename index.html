@@ -391,7 +391,8 @@ async function loadData() {
   // Só auto-registra se a permissão JÁ foi concedida (não exige user gesture).
   // Caso contrário, o botão "Ativar lembretes" no dashboard cuida do prompt.
   if ('Notification' in window && Notification.permission === 'granted') {
-    registerNotifications();
+    pushSilent = true;
+    registerNotifications().finally(function() { pushSilent = false; });
   }
 }
 
@@ -486,7 +487,7 @@ function render() {
   h += '</div><div class="itotal">Total: R$ ' + gt.toLocaleString('pt-BR') + '</div></div>';
 
   h += '<div class="refresh-hint" id="refresh-btn">↻ Atualizar dados</div>';
-  h += '<div class="note" style="margin-top:4px">build v6</div>';
+  h += '<div class="note" style="margin-top:4px">build v7</div>';
 
   document.getElementById('dashboard').innerHTML = h;
   bindEvents();
@@ -615,10 +616,12 @@ function urlBase64ToUint8Array(b64) {
 }
 
 var pushDiag = ''; // mensagem visível na UI durante/após o fluxo
+var pushSilent = false; // true durante auto-registro de startup (sem UI intermediária)
 
 function pushStep(msg) {
-  pushDiag = msg;
   console.log('[push]', msg);
+  if (pushSilent) return; // startup: não atualiza UI em steps intermediários
+  pushDiag = msg;
   try { render(); } catch(e) {}
 }
 
@@ -680,6 +683,7 @@ async function registerNotifications() {
     if (!resp.ok) return pushFail('/subscribe respondeu ' + resp.status);
     pushDiag = '';
     console.log('[push] inscrito com sucesso (' + events.length + ' eventos enviados)');
+    try { render(); } catch(e) {} // garante que o banner some ao completar
     return true;
   } catch(e) {
     var name = (e && e.name) || 'Error';
