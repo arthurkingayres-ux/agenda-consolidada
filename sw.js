@@ -1,4 +1,4 @@
-var CACHE = 'agenda-arthur-v6';
+var CACHE = 'agenda-arthur-v7';
 // URLs relativas ao escopo do SW (em GitHub Pages project site o scope
 // é /<repo>/, então './' aponta corretamente em vez de '/').
 var URLS = ['./', './index.html', './manifest.json'];

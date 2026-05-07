@@ -637,9 +637,20 @@ async function registerNotifications() {
   if (!WORKER_URL || WORKER_URL.startsWith('PASTE')) return pushFail('WORKER_URL ausente');
 
   try {
-    pushStep('pedindo permissão…');
-    var permission = await Notification.requestPermission();
-    if (permission !== 'granted') return pushFail('permissão: ' + permission);
+    // Only request if we don't already have permission — on iOS, calling
+    // requestPermission() when the OS revoked it returns 'denied' even when
+    // Notification.permission is still 'granted' (stale browser cache).
+    if (Notification.permission !== 'granted') {
+      pushStep('pedindo permissão…');
+      var permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        // Permission denied by OS — no point offering "Tentar"; let render
+        // show the static "Reative em Ajustes" block instead.
+        pushDiag = '';
+        render();
+        return false;
+      }
+    }
 
     pushStep('aguardando service worker…');
     var reg = await navigator.serviceWorker.ready;
@@ -673,6 +684,13 @@ async function registerNotifications() {
   } catch(e) {
     var name = (e && e.name) || 'Error';
     var msg = (e && e.message) || String(e);
+    // NotAllowedError from subscribe() means OS revoked permission; same
+    // treatment as denied — no retry button, direct user to Settings.
+    if (name === 'NotAllowedError') {
+      pushDiag = '';
+      render();
+      return false;
+    }
     return pushFail(name + ': ' + msg);
   }
 }
