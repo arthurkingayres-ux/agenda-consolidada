@@ -421,7 +421,7 @@ function render() {
     if (Notification.permission === 'denied') {
       h += '<div class="push-prompt denied"><div class="push-prompt-text">🔕 Notificações bloqueadas. Reative em Ajustes → Agenda Arthur → Notificações.</div></div>';
     } else {
-      h += '<div class="push-prompt"><div class="push-prompt-text">🔔 Ativar lembretes (24h e 1h antes de cada plantão HVC)</div><button class="push-prompt-btn" id="push-activate-btn">Ativar</button></div>';
+      h += '<div class="push-prompt"><div class="push-prompt-text">🔔 Ativar lembretes (24h e 1h antes de cada plantão HVC e sobreaviso)</div><button class="push-prompt-btn" id="push-activate-btn">Ativar</button></div>';
     }
   }
 
@@ -627,6 +627,34 @@ function pushFail(msg) {
   return false;
 }
 
+// Formata um Date (instante UTC correto) como ISO com offset fixo -03:00
+// (America/Sao_Paulo não tem DST desde 2019). Ex.: 2026-06-05T19:00:00-03:00
+function isoSP(d) {
+  return new Date(d.getTime() - 3 * 3600000).toISOString().slice(0, 19) + '-03:00';
+}
+
+// Dada a hora de início de um evento (ISO -03:00), devolve os lembretes já
+// resolvidos (fire + title + body prontos). leadFds=true → caso especial do
+// sobreaviso 24h de FDS (início 00:00): véspera 19h ("amanhã") + véspera 23h ("1h").
+function buildReminders(startIso, leadFds, prefix, desc) {
+  var start = new Date(startIso);
+  var rem;
+  if (leadFds) {
+    rem = [
+      { fire: isoSP(new Date(start.getTime() - 5 * 3600000)), title: prefix + ' — amanhã', body: desc + ' · começa amanhã 00:00' },
+      { fire: isoSP(new Date(start.getTime() - 1 * 3600000)), title: prefix + ' — 1h',     body: desc + ' · começa à meia-noite' }
+    ];
+  } else {
+    var hhmm = isoSP(start).slice(11, 16); // HH:MM do início
+    rem = [
+      { fire: isoSP(new Date(start.getTime() - 24 * 3600000)), title: prefix + ' — 24h', body: desc + ' · amanhã às ' + hhmm },
+      { fire: isoSP(new Date(start.getTime() - 1 * 3600000)),  title: prefix + ' — 1h',  body: desc + ' · começa às ' + hhmm }
+    ];
+  }
+  var now = Date.now();
+  return rem.filter(function(r) { return new Date(r.fire).getTime() > now; });
+}
+
 async function registerNotifications() {
   pushStep('iniciando…');
   if (!('Notification' in window) || !('PushManager' in window)) return pushFail('API não suportada');
@@ -665,8 +693,21 @@ async function registerNotifications() {
       if (key < tK) return;
       var hvc = HVC[key];
       var startHour = parseInt(hvc.hours.split('h')[0], 10);
-      var isoTime = key + 'T' + pad2(startHour) + ':00:00-03:00';
-      events.push({ isoTime: isoTime, label: hvc.label, hours: hvc.hours, source: hvc.source });
+      var startIso = key + 'T' + pad2(startHour) + ':00:00-03:00';
+      var reminders = buildReminders(startIso, false, '🏥 Plantão HVC', hvc.label + ' ' + hvc.hours);
+      if (reminders.length) events.push({ type: 'hvc', reminders: reminders });
+    });
+    Object.keys(SOBREAVISOS).sort().forEach(function(key) {
+      if (key < tK) return;
+      var sob = SOBREAVISOS[key];
+      var dw = new Date(key + 'T12:00:00').getDay();
+      var sR = sob.t === 'partial' ? phr(sob.h) : (dw===0||dw===6 ? {s:0,e:24} : {s:19,e:31});
+      var isFds = sob.t !== 'partial' && (dw===0 || dw===6); // full + FDS → início 00:00
+      var desc = sob.t === 'partial' ? 'Sobreaviso parcial ' + sob.h
+               : (isFds ? 'Sobreaviso 24h' : 'Sobreaviso noturno 19h-7h');
+      var startIso = key + 'T' + pad2(sR.s) + ':00:00-03:00';
+      var reminders = buildReminders(startIso, isFds, '🩺 Sobreaviso CPL', desc);
+      if (reminders.length) events.push({ type: 'sobreaviso', reminders: reminders });
     });
 
     pushStep('enviando subscription ao Worker (' + events.length + ' eventos)…');

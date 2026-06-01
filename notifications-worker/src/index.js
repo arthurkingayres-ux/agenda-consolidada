@@ -151,7 +151,9 @@ export default {
     if (request.method === 'POST' && url.pathname === '/subscribe') {
       const { subscription, events } = await request.json();
       const now = Date.now();
-      const futureEvents = events.filter(e => new Date(e.isoTime).getTime() > now);
+      const futureEvents = (events || [])
+        .map(e => ({ ...e, reminders: (e.reminders || []).filter(r => new Date(r.fire).getTime() > now) }))
+        .filter(e => e.reminders.length > 0);
       await env.STORE.put('data', JSON.stringify({ subscription, events: futureEvents }));
       return new Response('OK', { status: 200, headers: cors });
     }
@@ -165,43 +167,26 @@ export default {
 
     const now = Date.now();
 
+    // Worker burro: cada reminder já vem com fire/title/body resolvidos pelo
+    // client. Só dispara os que caem na janela ±30min do horário de disparo.
     for (const ev of data.events) {
-      const diffH = (new Date(ev.isoTime).getTime() - now) / 3_600_000;
+      for (const r of (ev.reminders || [])) {
+        const diffH = (new Date(r.fire).getTime() - now) / 3_600_000;
+        if (diffH < -0.5 || diffH > 0.5) continue;
 
-      let notification = null;
-
-      if (diffH >= 23.5 && diffH <= 24.5) {
-        const time = new Date(ev.isoTime).toLocaleString('pt-BR', {
-          hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo'
-        });
-        notification = {
-          title: '🏥 Plantão HVC — 24h',
-          body: `${ev.label} ${ev.hours} · amanhã às ${time}`
-        };
-      } else if (diffH >= 0.5 && diffH <= 1.5) {
-        const time = new Date(ev.isoTime).toLocaleString('pt-BR', {
-          hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo'
-        });
-        notification = {
-          title: '🏥 Plantão HVC — 1h',
-          body: `${ev.label} ${ev.hours} · começa às ${time}`
-        };
-      }
-
-      if (!notification) continue;
-
-      try {
-        const resp = await sendPush(
-          data.subscription, notification,
-          env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY, env.VAPID_SUBJECT
-        );
-        if (resp.status === 410) {
-          // Subscription expirada — limpar KV
-          await env.STORE.delete('data');
-          return;
+        try {
+          const resp = await sendPush(
+            data.subscription, { title: r.title, body: r.body },
+            env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY, env.VAPID_SUBJECT
+          );
+          if (resp.status === 410) {
+            // Subscription expirada — limpar KV
+            await env.STORE.delete('data');
+            return;
+          }
+        } catch (err) {
+          console.error('Push failed:', err.message);
         }
-      } catch (err) {
-        console.error('Push failed:', err.message);
       }
     }
   }
