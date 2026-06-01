@@ -136,14 +136,31 @@ Mar–Dez = 2026, Jan e Fev = 2027.
    commitar e sem abrir issue.
 
 9. Se diferentes, reescrever o bloco entre `var SOBREAVISOS = {` e
-   `};` usando a ferramenta Edit. Formatação: ~3 entries por linha
-   separadas por vírgula, indentação de 2 espaços, novo mês inicia
-   nova linha. Espelhar o estilo atual.
+   `};`. **NUNCA formate o bloco à mão** — gere o texto exato em Python
+   (num script gravado em `/tmp/`), garantindo a sintaxe, e só então
+   aplique com Edit usando esse texto literal. Regras de serialização:
+   - Iterar as chaves em ordem ascendente.
+   - Agrupar ~3 entries por linha, indentação de 2 espaços, novo mês
+     inicia nova linha.
+   - **TODA entry é seguida de vírgula, inclusive a última de cada
+     linha** — a única entry sem vírgula é a última do dict inteiro.
+     Construa juntando todas as entries com `","` (`",".join(...)`) e
+     só depois quebre em linhas; nunca insira a vírgula "por linha"
+     manualmente (foi assim que o sync de 2026-06-01 gravou
+     `{"t":"full"}` sem vírgula no fim da linha → `SyntaxError:
+     Unexpected string` → PWA não abria).
 
-10. Rodar `git diff --stat index.html` e conferir que SÓ `index.html`
-    mudou e SÓ dentro do bloco SOBREAVISOS. Se houver mudança fora,
-    `git checkout index.html` e abortar via passo 11 com
-    `out-of-bounds edit`.
+10. Validações pós-edição (qualquer falha = `git checkout index.html`
+    e abortar via passo 11):
+    - **GATE de sintaxe (crítico):** re-extrair o bloco de `index.html`
+      (mesma regex do passo 6) e validar que volta a ser JSON
+      parseável: `json.loads("{" + corpo.rstrip().rstrip(",") + "}")`.
+      Se levantar exceção, abortar com `serialization produced invalid
+      JS`. Este gate teria pego o incidente de 2026-06-01 (dict sem
+      vírgula no fim da linha → PWA não abria); não o remova.
+    - `git diff --stat index.html`: conferir que SÓ `index.html` mudou
+      e SÓ dentro do bloco SOBREAVISOS. Se houver mudança fora, abortar
+      com `out-of-bounds edit`.
 
 11. **Em caso de ABORT** (qualquer ponto acima):
     - NÃO commitar nada.
