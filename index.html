@@ -339,12 +339,35 @@ async function fetchEvents() {
   return (await resp.json()).items || [];
 }
 
-async function loadData() {
+async function loadData(background) {
   var dash = document.getElementById('dashboard');
-  dash.innerHTML = '<div class="loading"><div class="spinner"></div><br>Carregando Pega Plantão...</div>';
+  // Spinner só na primeira pintura; refresh em 2º plano não pisca a tela.
+  if (!background && !hasRendered) {
+    dash.innerHTML = '<div class="loading"><div class="spinner"></div><br>Carregando Pega Plantão...</div>';
+  }
 
-  try {
-    var events = await fetchEvents();
+  // loadData pode rodar mais de uma vez (refresh ao reconectar): zera acumuladores.
+  HVC = {}; realMonths = {}; totalReal = 0;
+
+  var events = null, usouCache = false, lastSync = null;
+
+  // 1) Tenta a rede quando há conexão e token.
+  if (navigator.onLine && accessToken) {
+    try {
+      events = await fetchEvents();
+      saveHvcCache(events);
+      lastSync = Date.now();
+    } catch(e) { events = null; }
+  }
+
+  // 2) Sem rede / sem token / falhou → usa os últimos plantões salvos.
+  if (!events) {
+    var cached = loadHvcCache();
+    if (cached) { events = cached.events; usouCache = true; lastSync = cached.savedAt; }
+  }
+
+  // 3) Transforma os eventos (reais ou do cache) no dict HVC.
+  if (events) {
     events.forEach(function(ev) {
       if (!ev.start || !ev.start.dateTime) return;
       var st = new Date(ev.start.dateTime);
@@ -371,7 +394,7 @@ async function loadData() {
         HVC[key] = { label: label, hours: hrs, source: 'real', eventCount: 1, weight: w };
       }
     });
-  } catch(e) { /* continue with projections */ }
+  }
 
   // Projections
   monthList.forEach(function(ym) {
@@ -406,6 +429,7 @@ async function loadData() {
     }
   });
 
+  offlineState = { stale: usouCache || !navigator.onLine, lastSync: lastSync };
   render();
   // Só auto-registra se a permissão JÁ foi concedida (não exige user gesture).
   // Caso contrário, o botão "Ativar lembretes" no dashboard cuida do prompt.
