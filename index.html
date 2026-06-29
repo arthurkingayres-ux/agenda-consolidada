@@ -289,14 +289,24 @@ function showDashboard() {
 }
 
 // ============ GOOGLE AUTH ============
-function loadGsi() {
+var gsiLoaded = false;
+var gsiInited = false;
+
+function loadGsiBestEffort() {
+  if (gsiLoaded || document.getElementById('gsi-script')) return;
   var s = document.createElement('script');
+  s.id = 'gsi-script';
   s.src = 'https://accounts.google.com/gsi/client';
-  s.onload = function() { initGsi(); };
+  s.onload = function() { gsiLoaded = true; initGsi(); };
+  // Offline: o app já renderizou do cache; tentamos de novo no evento 'online'.
+  s.onerror = function() { var el = document.getElementById('gsi-script'); if (el) el.remove(); };
   document.head.appendChild(s);
 }
 
 function initGsi() {
+  if (gsiInited) return;   // idempotente: 'online' pode recarregar o GSI
+  gsiInited = true;
+
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPES,
@@ -304,22 +314,19 @@ function initGsi() {
       if (resp.access_token) {
         accessToken = resp.access_token;
         saveAuth(resp.access_token, resp.expires_in);
-        showDashboard();
+        showDashboard();   // garante dashboard visível + loadData() com token novo
       }
     },
-    error_callback: function() { /* silent failures stay on login screen */ }
+    error_callback: function() { /* falha silenciosa: mantém o estado atual */ }
   });
 
   document.getElementById('login-btn').addEventListener('click', function() {
     tokenClient.requestAccessToken({ prompt: 'consent' });
   });
 
-  // Try silent auth: cached token → silent refresh → show login button
-  var cached = loadAuth();
-  if (cached) {
-    accessToken = cached;
-    showDashboard();
-  } else {
+  // O boot já decidiu o que renderizar. Aqui só buscamos token quando não há
+  // um válido em cache (refresh silencioso precisa de rede).
+  if (!loadAuth()) {
     tokenClient.requestAccessToken({ prompt: '' });
   }
 }
@@ -797,7 +804,15 @@ async function registerNotifications() {
   }
 }
 
-loadGsi();
+// Boot offline-first: renderiza do cache na hora; GSI carrega em 2º plano.
+(function boot() {
+  var hasSession = hasHvcCache() || !!localStorage.getItem(AUTH_KEY);
+  if (hasSession) {
+    accessToken = loadAuth();   // pode ser null (token expirado) — tudo bem
+    showDashboard();            // renderiza cache + SOBREAVISOS imediatamente
+  }
+  loadGsiBestEffort();          // login interativo + refresh silencioso quando online
+})();
 </script>
 </body>
 </html>
