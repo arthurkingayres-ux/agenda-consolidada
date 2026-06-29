@@ -244,7 +244,10 @@ var CONFLICTS = [];
 var tKey = todayK();
 var accessToken = null;
 var AUTH_KEY = 'agenda_auth_v1';
+var HVC_CACHE_KEY = 'agenda_hvc_cache_v1';
 var tokenClient = null;
+var offlineState = { stale: false, lastSync: null };
+var hasRendered = false;
 
 function saveAuth(tok, expiresIn) {
   var expiresAt = Date.now() + (expiresIn || 3600) * 1000 - 60000; // minus 60s buffer
@@ -260,6 +263,22 @@ function loadAuth() {
   return null;
 }
 function clearAuth() { try { localStorage.removeItem(AUTH_KEY); } catch(e) {} }
+// ---- Cache dos plantões reais (sobrevive offline) ----
+function saveHvcCache(events) {
+  try { localStorage.setItem(HVC_CACHE_KEY, JSON.stringify({ events: events, savedAt: Date.now() })); } catch(e) {}
+}
+function loadHvcCache() {
+  try {
+    var raw = localStorage.getItem(HVC_CACHE_KEY);
+    if (!raw) return null;
+    var data = JSON.parse(raw);
+    if (data && data.events) return data;
+  } catch(e) {}
+  return null;
+}
+function hasHvcCache() {
+  try { return !!localStorage.getItem(HVC_CACHE_KEY); } catch(e) { return false; }
+}
 
 function showDashboard() {
   document.getElementById('login-screen').style.display = 'none';
