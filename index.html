@@ -804,6 +804,17 @@ async function registerNotifications() {
   }
 }
 
+// Reconectou: recarrega o GSI se falhou offline e atualiza os dados.
+window.addEventListener('online', function() {
+  if (!gsiLoaded) loadGsiBestEffort();
+  if (accessToken) {
+    loadData(true);                                  // refresh em 2º plano
+  } else if (gsiInited && tokenClient) {
+    tokenClient.requestAccessToken({ prompt: '' });  // token expirado → callback dispara loadData
+  }
+  // Se o GSI ainda não inicializou, seu onload→initGsi cuida do refresh silencioso.
+});
+
 // Boot offline-first: renderiza do cache na hora; GSI carrega em 2º plano.
 (function boot() {
   var hasSession = hasHvcCache() || !!localStorage.getItem(AUTH_KEY);
