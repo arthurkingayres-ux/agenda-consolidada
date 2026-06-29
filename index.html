@@ -124,6 +124,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI'
 .push-prompt-btn { background: #D97706; color: white; border: none; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
 .push-prompt-btn:active { transform: scale(0.96); }
 .push-prompt.denied { background: #FEE2E2; border-color: #DC2626; color: #991B1B; }
+
+.offline-bar { font-size: 11px; color: #92400E; background: #FEF3C7; border: 1px solid #FCD34D; border-radius: 8px; padding: 6px 12px; margin-bottom: 10px; text-align: center; }
 </style>
 </head>
 <body>
@@ -439,6 +441,11 @@ async function loadData(background) {
   }
 }
 
+function fmtSync(ms) {
+  var d = new Date(ms);
+  return pad2(d.getDate()) + '/' + pad2(d.getMonth()+1) + ' ' + pad2(d.getHours()) + 'h';
+}
+
 function phr(h) {
   var c = h.replace(/h/g,'').split('-');
   var s = parseInt(c[0]), e = parseInt(c[1]);
@@ -449,6 +456,12 @@ function phr(h) {
 // ============ RENDER ============
 function render() {
   var h = '';
+
+  // Faixa discreta: dados salvos/antigos (some quando um refresh online dá certo)
+  if (offlineState.stale) {
+    var syncTxt = offlineState.lastSync ? ' · dados de ' + fmtSync(offlineState.lastSync) : '';
+    h += '<div class="offline-bar">📡 Offline' + syncTxt + '</div>';
+  }
 
   // Banner
   var tSob = SOBREAVISOS[tKey], tHvc = HVC[tKey], tHol = FERIADOS[tKey];
@@ -533,6 +546,7 @@ function render() {
   h += '<div class="note" style="margin-top:4px">build v7</div>';
 
   document.getElementById('dashboard').innerHTML = h;
+  hasRendered = true;
   bindEvents();
 }
 
