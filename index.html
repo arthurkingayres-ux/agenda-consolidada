@@ -620,7 +620,7 @@ function bindEvents() {
     el.addEventListener('click', function() { showSheet(this.getAttribute('data-day')); });
   });
   var rb = document.getElementById('refresh-btn');
-  if (rb) rb.addEventListener('click', function() { HVC={}; realMonths={}; totalReal=0; CONFLICTS=[]; loadData(); });
+  if (rb) rb.addEventListener('click', function() { loadData(); });
   var pb = document.getElementById('push-activate-btn');
   if (pb) pb.addEventListener('click', function() {
     pb.disabled = true;
