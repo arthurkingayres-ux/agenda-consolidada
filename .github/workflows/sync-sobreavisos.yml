@@ -1,0 +1,112 @@
+name: Sync SOBREAVISOS
+
+on:
+  schedule:
+    # 09:57 UTC = 06:57 BRT, seg+qui — mesma cadência da cloud routine que isto
+    # substitui. Nota: workflows agendados são desativados após 60 dias sem
+    # atividade no repo; o GitHub avisa por e-mail antes.
+    - cron: "57 9 * * 1,4"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Só relatar o diff, sem commitar"
+        type: boolean
+        default: false
+
+concurrency:
+  group: sync-sobreavisos
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Guarda: se o parser está quebrado, nem chega a falar com a planilha.
+      # Os testes rodam sem dependência nenhuma, então vêm antes do pip.
+      - name: Testes
+        run: python -m unittest discover -s tests
+
+      - name: Dependências
+        run: pip install --quiet google-auth requests
+
+      - name: Sincronizar
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -o pipefail
+          LOG="$RUNNER_TEMP/sync.log"   # fora do repo: não suja o git status
+          FLAGS=""
+          [ "$DRY_RUN" = "true" ] && FLAGS="--dry-run"
+          python scripts/sync_sobreavisos.py $FLAGS 2>&1 | tee "$LOG"
+
+      # Gate de escopo: o sync não pode ter tocado em nada além do index.html.
+      - name: Conferir escopo do diff
+        run: |
+          CHANGED=$(git status --porcelain | awk '{print $NF}')
+          if [ -n "$CHANGED" ] && [ "$CHANGED" != "index.html" ]; then
+            echo "out-of-bounds edit:" >&2
+            echo "$CHANGED" >&2
+            exit 1
+          fi
+
+      - name: Commitar
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "sem mudanças a commitar"
+            exit 0
+          fi
+          SUMMARY=$(tail -n1 "$RUNNER_TEMP/sync.log")
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "chore(data): sync SOBREAVISOS from sheet ($SUMMARY)"
+          git push
+
+      - name: Abrir issue em caso de falha
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          RAZAO=$(tail -n1 "$RUNNER_TEMP/sync.log" 2>/dev/null || echo "falha antes do sync")
+          TITULO="[SYNC FAILURE] sync-sobreavisos"
+
+          cat > "$RUNNER_TEMP/body.md" <<EOF
+          O sync automático falhou e **não** tocou em \`index.html\`.
+
+          Razão: \`$RAZAO\`
+
+          Run: $RUN_URL
+
+          **Playbook:** se for drift de layout da planilha, abra uma sessão
+          interativa, rode
+
+          \`\`\`
+          python scripts/sync_sobreavisos.py --dump-fixture tests/fixtures/sheet.json
+          \`\`\`
+
+          e ajuste parser + fixture com os testes passando.
+          EOF
+
+          # Dedup: se já existe issue aberta, comenta em vez de abrir outra.
+          EXISTENTE=$(gh issue list --state open --search "$TITULO in:title" \
+            --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTENTE" ]; then
+            gh issue comment "$EXISTENTE" \
+              -b "Repetiu em $(date -Iseconds): \`$RAZAO\` — $RUN_URL"
+          else
+            gh issue create --title "$TITULO: $RAZAO" \
+              --body-file "$RUNNER_TEMP/body.md"
+          fi

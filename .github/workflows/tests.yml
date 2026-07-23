@@ -1,0 +1,24 @@
+name: Testes
+
+# Roda a suíte do parser em todo push e PR. Não toca na planilha nem em
+# secrets — só valida que o código está são antes de virar release.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "scripts/**"
+      - "tests/**"
+      - "index.html"
+      - ".github/workflows/**"
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Sem pip: a suíte roda só com stdlib, de propósito.
+      - run: python -m unittest discover -s tests -v
