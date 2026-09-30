@@ -87,7 +87,9 @@ O dump grava o par `sheet.json` + `sheet.expected.json`; confira o esperado cont
 
 **O golden compara a fixture com `sheet.expected.json`, nunca com o `index.html` vivo.** O sync reescreve o `index.html`; quando o teste comparava com ele, o primeiro sync com dado novo (30/07/2026) travou todos os seguintes até 30/09/2026 — 17 runs vermelhas.
 
-**Keepalive:** o GitHub desativa cron após 60 dias sem commit (aconteceu em 28/09/2026). O último passo do workflow grava `.github/keepalive` se o último commit tiver ≥50 dias. Se o workflow aparecer `disabled_inactivity`: `gh workflow enable sync-sobreavisos.yml`. **A fixture é anonimizada de propósito** — o repo é público e a planilha traz a escala de todos os plantonistas do CPL. Nunca commite `--no-redact`.
+**Keepalive:** o GitHub desativa cron após 60 dias sem commit (aconteceu em 28/09/2026). O último passo do workflow grava `.github/keepalive` se o último commit tiver ≥50 dias. Se o workflow aparecer `disabled_inactivity`: `gh workflow enable sync-sobreavisos.yml`.
+
+**Indicador no PWA:** o app consulta a API pública do GitHub (`runs?status=completed` e `?status=success`, sem token) e mostra no rodapé a data do último sync com sucesso; faixa vermelha no topo se o último run concluído falhou (`failure`/`timed_out`/`startup_failure`) ou se o último sucesso tem >5 dias. `api.github.com` fica **fora** do cache do SW — resposta velha offline geraria alarme falso. **A fixture é anonimizada de propósito** — o repo é público e a planilha traz a escala de todos os plantonistas do CPL. Nunca commite `--no-redact`.
 
 Detalhes que o parser depende e que não são óbvios:
 

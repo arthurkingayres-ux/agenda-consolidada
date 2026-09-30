@@ -1,4 +1,4 @@
-var CACHE = 'agenda-arthur-v8';
+var CACHE = 'agenda-arthur-v9';
 // URLs relativas ao escopo do SW (em GitHub Pages project site o scope
 // é /<repo>/, então './' aponta corretamente em vez de '/').
 var URLS = ['./', './index.html', './manifest.json'];
@@ -31,7 +31,9 @@ self.addEventListener('activate', function(e) {
 });
 
 self.addEventListener('fetch', function(e) {
-  if (e.request.url.includes('googleapis.com') || e.request.url.includes('accounts.google.com')) {
+  // api.github.com: status do sync — resposta em cache offline geraria alarme falso.
+  if (e.request.url.includes('googleapis.com') || e.request.url.includes('accounts.google.com') ||
+      e.request.url.includes('api.github.com')) {
     return;
   }
   // Network-first: serve fresh content when online, fall back to cache when offline.

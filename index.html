@@ -126,6 +126,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI'
 .push-prompt.denied { background: #FEE2E2; border-color: #DC2626; color: #991B1B; }
 
 .offline-bar { font-size: 11px; color: #92400E; background: #FEF3C7; border: 1px solid #FCD34D; border-radius: 8px; padding: 6px 12px; margin-bottom: 10px; text-align: center; }
+.offline-bar.alert { color: #991B1B; background: #FEE2E2; border-color: #DC2626; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -251,6 +252,7 @@ var HVC_CACHE_KEY = 'agenda_hvc_cache_v1';
 var tokenClient = null;
 var offlineState = { stale: false, lastSync: null };
 var hasRendered = false;
+var loadingData = false;
 
 function saveAuth(tok, expiresIn) {
   var expiresAt = Date.now() + (expiresIn || 3600) * 1000 - 60000; // minus 60s buffer
@@ -287,6 +289,59 @@ function showDashboard() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
   loadData();
+}
+
+// ---- Status do sync dos SOBREAVISOS (GitHub Actions, API pública) ----
+// O sync roda seg+qui; o maior intervalo normal é qui→seg (4 dias).
+var SYNC_STATUS_KEY = 'agenda_sync_status_v1';
+var SYNC_RUNS_URL = 'https://api.github.com/repos/arthurkingayres-ux/agenda-consolidada/actions/workflows/sync-sobreavisos.yml/runs';
+var SYNC_STALE_MS = 5 * 24 * 3600 * 1000;
+// cancelled/skipped/neutral não são falha do sync: caem na régua de staleness.
+var SYNC_FAIL = { failure: 1, timed_out: 1, startup_failure: 1 };
+var syncStatus = loadSyncStatus();
+
+function loadSyncStatus() {
+  try { return JSON.parse(localStorage.getItem(SYNC_STATUS_KEY)) || null; } catch(e) { return null; }
+}
+
+async function fetchSyncRun(query) {
+  // no-store + api.github.com fora do SW: resposta velha nunca passa por nova.
+  var r = await fetch(SYNC_RUNS_URL + '?' + query + '&per_page=1', { cache: 'no-store' });
+  if (!r.ok) throw new Error('GitHub ' + r.status);   // 403 = rate limit
+  var runs = (await r.json()).workflow_runs || [];
+  return runs[0] || null;
+}
+
+// Falha na consulta mantém o último status salvo: o aviso não alarma por
+// falha própria.
+async function refreshSyncStatus() {
+  try {
+    var res = await Promise.all([fetchSyncRun('status=completed'), fetchSyncRun('status=success')]);
+    var last = res[0], ok = res[1];
+    syncStatus = {
+      checkedAt: Date.now(),
+      lastSuccess: ok ? Date.parse(ok.updated_at) : null,
+      lastConclusion: last ? last.conclusion : null,
+      lastAt: last ? Date.parse(last.updated_at) : null
+    };
+    try { localStorage.setItem(SYNC_STATUS_KEY, JSON.stringify(syncStatus)); } catch(e) {}
+  } catch(e) { return; }
+  // loadData em curso zerou o HVC; o render dele já vai pegar o status novo.
+  if (hasRendered && !loadingData) render();
+}
+
+// Alerta vermelho ou null. Staleness medida contra o momento da consulta, não
+// contra agora: offline há dias não vira "sync atrasado" (a faixa Offline cobre).
+function syncAlert(st) {
+  if (!st) return null;
+  if (SYNC_FAIL[st.lastConclusion]) {
+    return '⚠️ Sync dos sobreavisos falhou em ' + fmtSync(st.lastAt) + ' — confira a planilha';
+  }
+  if (st.lastSuccess && st.checkedAt - st.lastSuccess > SYNC_STALE_MS) {
+    var dias = Math.floor((st.checkedAt - st.lastSuccess) / 86400000);
+    return '⚠️ Sobreavisos sem sincronizar há ' + dias + ' dias';
+  }
+  return null;
 }
 
 // ============ GOOGLE AUTH ============
@@ -355,6 +410,9 @@ async function loadData(background) {
   if (!background && !hasRendered) {
     dash.innerHTML = '<div class="loading"><div class="spinner"></div><br>Carregando Pega Plantão...</div>';
   }
+
+  if (navigator.onLine) refreshSyncStatus();   // em paralelo; não segura o render
+  loadingData = true;
 
   // loadData pode rodar mais de uma vez (refresh ao reconectar): zera acumuladores.
   HVC = {}; realMonths = {}; totalReal = 0;
@@ -440,6 +498,7 @@ async function loadData(background) {
   });
 
   offlineState = { stale: usouCache || !navigator.onLine, lastSync: lastSync };
+  loadingData = false;
   render();
   // Só auto-registra se a permissão JÁ foi concedida (não exige user gesture).
   // Caso contrário, o botão "Ativar lembretes" no dashboard cuida do prompt.
@@ -470,6 +529,8 @@ function render() {
     var syncTxt = offlineState.lastSync ? ' · dados de ' + fmtSync(offlineState.lastSync) : '';
     h += '<div class="offline-bar">📡 Offline' + syncTxt + '</div>';
   }
+  var alerta = syncAlert(syncStatus);
+  if (alerta) h += '<div class="offline-bar alert">' + alerta + '</div>';
 
   // Banner
   var tSob = SOBREAVISOS[tKey], tHvc = HVC[tKey], tHol = FERIADOS[tKey];
@@ -551,6 +612,9 @@ function render() {
   h += '</div><div class="itotal">Total: R$ ' + gt.toLocaleString('pt-BR') + '</div></div>';
 
   h += '<div class="refresh-hint" id="refresh-btn">↻ Atualizar dados</div>';
+  if (syncStatus && syncStatus.lastSuccess) {
+    h += '<div class="note" style="margin-top:0">Sobreavisos sincronizados em ' + fmtSync(syncStatus.lastSuccess) + '</div>';
+  }
   h += '<div class="note" style="margin-top:4px">build v7</div>';
 
   document.getElementById('dashboard').innerHTML = h;
