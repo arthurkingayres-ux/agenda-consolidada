@@ -467,6 +467,12 @@ def diff_summary(new, old):
     return added, removed, changed
 
 
+def expected_path(fixture):
+    """sheet.json -> sheet.expected.json, no mesmo diretório."""
+    base, ext = os.path.splitext(fixture)
+    return base + ".expected" + ext
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true",
@@ -490,10 +496,17 @@ def main(argv=None):
             saida = grids if args.no_redact else redact(grids)
             with open(args.dump_fixture, "w", encoding="utf-8") as fh:
                 json.dump(saida, fh, ensure_ascii=False, indent=1, sort_keys=True)
-            print("fixture salva em {} ({})".format(
+            # O par fixture + esperado nasce junto: o golden compara um com o
+            # outro, nunca com o index.html vivo (que o próprio sync reescreve).
+            esperado = expected_path(args.dump_fixture)
+            with open(esperado, "w", encoding="utf-8") as fh:
+                json.dump(build(saida), fh, ensure_ascii=False, indent=1,
+                          sort_keys=True)
+            print("fixture salva em {} ({}); esperado em {}".format(
                 args.dump_fixture,
                 "CRUA — contém dados de terceiros, não commitar"
-                if args.no_redact else "anonimizada"))
+                if args.no_redact else "anonimizada",
+                esperado))
             return 0
 
         with open(TARGET, encoding="utf-8") as fh:

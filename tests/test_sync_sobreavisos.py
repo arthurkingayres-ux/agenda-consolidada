@@ -178,6 +178,7 @@ class TestGolden(unittest.TestCase):
 
     A fixture é anonimizada (repo público) mas preserva tudo que o parser lê.
     Regenerar com: python scripts/sync_sobreavisos.py --dump-fixture tests/fixtures/sheet.json
+    (grava também sheet.expected.json — o par nasce junto e é comparado entre si).
     """
 
     def setUp(self):
@@ -186,8 +187,13 @@ class TestGolden(unittest.TestCase):
             self.grids = json.load(fh)
         del S.ANOMALIAS[:]
 
-    def test_parser_reproduz_o_dict_de_producao(self):
-        esperado = S.parse_block(S.extract_block(read_index()))
+    def test_parser_reproduz_o_dict_esperado(self):
+        # Compara com o esperado congelado junto da fixture, NUNCA com o
+        # index.html vivo: o sync reescreve o index.html, e o acoplamento
+        # travou o sync de 03/08 a 30/09/2026 no primeiro dado novo.
+        import json
+        with open(S.expected_path(FIXTURE), encoding="utf-8") as fh:
+            esperado = json.load(fh)
         obtido = S.build(self.grids)
         self.assertEqual(obtido, esperado)
 

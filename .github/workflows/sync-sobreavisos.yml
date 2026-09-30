@@ -3,8 +3,8 @@ name: Sync SOBREAVISOS
 on:
   schedule:
     # 09:57 UTC = 06:57 BRT, seg+qui — mesma cadência da cloud routine que isto
-    # substitui. Nota: workflows agendados são desativados após 60 dias sem
-    # atividade no repo; o GitHub avisa por e-mail antes.
+    # substitui. Workflows agendados são desativados após 60 dias sem commit
+    # no repo — o passo "Keepalive" no fim cuida disso.
     - cron: "57 9 * * 1,4"
   workflow_dispatch:
     inputs:
@@ -34,12 +34,15 @@ jobs:
       # Guarda: se o parser está quebrado, nem chega a falar com a planilha.
       # Os testes rodam sem dependência nenhuma, então vêm antes do pip.
       - name: Testes
+        id: testes
         run: python -m unittest discover -s tests
 
       - name: Dependências
+        id: deps
         run: pip install --quiet google-auth requests
 
       - name: Sincronizar
+        id: sync
         env:
           GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
           DRY_RUN: ${{ inputs.dry_run }}
@@ -52,6 +55,7 @@ jobs:
 
       # Gate de escopo: o sync não pode ter tocado em nada além do index.html.
       - name: Conferir escopo do diff
+        id: escopo
         run: |
           CHANGED=$(git status --porcelain | awk '{print $NF}')
           if [ -n "$CHANGED" ] && [ "$CHANGED" != "index.html" ]; then
@@ -61,6 +65,7 @@ jobs:
           fi
 
       - name: Commitar
+        id: commit
         run: |
           if git diff --quiet -- index.html; then
             echo "sem mudanças a commitar"
@@ -73,13 +78,45 @@ jobs:
           git commit -m "chore(data): sync SOBREAVISOS from sheet ($SUMMARY)"
           git push
 
+      # Só commit conta como atividade para o contador de 60 dias. Em período
+      # sem mudança na planilha, grava um marcador antes do GitHub desativar
+      # o cron (aconteceu em 28/09/2026). Hand-rolled: nada de action de
+      # terceiros num job com contents: write.
+      - name: Keepalive
+        id: keepalive
+        if: success() && inputs.dry_run != true
+        run: |
+          IDADE=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          echo "último commit há $IDADE dia(s)"
+          [ "$IDADE" -lt 50 ] && exit 0
+          date -u +%Y-%m-%dT%H:%M:%SZ > .github/keepalive
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/keepalive
+          git commit -m "chore(data): keepalive do cron (último commit há $IDADE dias)"
+          git push
+
       - name: Abrir issue em caso de falha
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          S_TESTES: ${{ steps.testes.outcome }}
+          S_DEPS: ${{ steps.deps.outcome }}
+          S_SYNC: ${{ steps.sync.outcome }}
+          S_ESCOPO: ${{ steps.escopo.outcome }}
+          S_COMMIT: ${{ steps.commit.outcome }}
+          S_KEEPALIVE: ${{ steps.keepalive.outcome }}
         run: |
-          RAZAO=$(tail -n1 "$RUNNER_TEMP/sync.log" 2>/dev/null || echo "falha antes do sync")
+          # Razão pelo passo que falhou; o log do sync só existe se ele rodou.
+          if   [ "$S_TESTES" = "failure" ]; then RAZAO="testes do parser falharam"
+          elif [ "$S_DEPS" = "failure" ];   then RAZAO="pip install falhou"
+          elif [ "$S_SYNC" = "failure" ];   then RAZAO=$(tail -n1 "$RUNNER_TEMP/sync.log" 2>/dev/null || echo "sync falhou sem log")
+          elif [ "$S_ESCOPO" = "failure" ]; then RAZAO="sync editou arquivo fora do index.html"
+          elif [ "$S_COMMIT" = "failure" ]; then RAZAO="commit/push falhou"
+          elif [ "$S_KEEPALIVE" = "failure" ]; then RAZAO="keepalive falhou"
+          else RAZAO="falha fora dos passos do sync (setup/checkout)"
+          fi
           TITULO="[SYNC FAILURE] sync-sobreavisos"
 
           cat > "$RUNNER_TEMP/body.md" <<EOF
@@ -96,7 +133,9 @@ jobs:
           python scripts/sync_sobreavisos.py --dump-fixture tests/fixtures/sheet.json
           \`\`\`
 
-          e ajuste parser + fixture com os testes passando.
+          e ajuste parser + fixture com os testes passando. O \`--dump-fixture\`
+          grava o par \`sheet.json\` + \`sheet.expected.json\`; confira o
+          esperado contra a planilha antes de commitar.
           EOF
 
           # Dedup: se já existe issue aberta, comenta em vez de abrir outra.
